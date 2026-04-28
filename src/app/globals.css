@@ -128,3 +128,13 @@
     @apply font-sans;
   }
 }
+
+.bn-readable {
+  font-family: "Noto Sans Bengali", "Hind Siliguri", "SolaimanLipi", "Kalpurush", "Arial", sans-serif;
+}
+
+@media (max-width: 640px) {
+  .bn-readable {
+    line-height: 1.6;
+  }
+}
