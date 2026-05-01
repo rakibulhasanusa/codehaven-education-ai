@@ -296,7 +296,7 @@ export default function Home() {
   async function loadHistory() {
     try {
       setLoadingHistory(true);
-      const res = await fetch("/api/attempts", { cache: "no-store" });
+      const res = await fetch("/api/attempts?limit=20", { cache: "no-store" });
       const rows = (await res.json()) as AttemptRecord[];
       if (res.ok) {
         setHistory(rows);
@@ -689,16 +689,17 @@ export default function Home() {
       )}
       {/* ────────────────────────────────────────────────────────────────── */}
 
-      <header className="border-b pb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">MCQ Smart Exam Platform</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <header className="premium-panel rounded-2xl px-5 py-5 md:px-6 md:py-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Premium Practice Suite</p>
+        <h1 className="premium-title mt-1 text-3xl font-bold tracking-tight md:text-4xl">MCQ Smart Exam Platform</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           AI-generated exams, timed answers, smart feedback, and progress analytics.
         </p>
       </header>
 
       {phase === "setup" && (
         <main className="grid gap-6 py-6 lg:grid-cols-[2fr_1fr]">
-          <section className="space-y-6 rounded-lg border p-4 md:p-5">
+          <section className="premium-panel space-y-6 rounded-2xl p-4 md:p-5">
             <div className="space-y-2">
               <h2 className="text-lg font-semibold">Start A New Exam</h2>
               <label htmlFor="learner" className="block text-sm font-medium">
@@ -828,22 +829,22 @@ export default function Home() {
             )}
           </section>
 
-          <aside className="space-y-4 rounded-lg border p-4 md:p-5">
+          <aside className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
             <h2 className="text-lg font-semibold">Biodata Report</h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-md border p-3">
+              <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-muted-foreground">Total Exams</p>
                 <p className="text-xl font-semibold">{history.length}</p>
               </div>
-              <div className="rounded-md border p-3">
+              <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-muted-foreground">Best Score</p>
                 <p className="text-xl font-semibold">{bestScore}%</p>
               </div>
-              <div className="rounded-md border p-3">
+              <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-muted-foreground">Average</p>
                 <p className="text-xl font-semibold">{avgScoreHistory}%</p>
               </div>
-              <div className="rounded-md border p-3">
+              <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-muted-foreground">Recent Trend</p>
                 <p className="text-xl font-semibold">
                   {trendDelta > 0 ? `+${trendDelta}%` : `${trendDelta}%`}
@@ -853,9 +854,15 @@ export default function Home() {
 
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Premium Request Limit</h3>
-              {loadingLimit && <p className="text-sm text-muted-foreground">Loading limit...</p>}
+              {loadingLimit && (
+                <div className="space-y-2 rounded-xl border bg-background/70 p-3">
+                  <div className="h-3 w-40 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-36 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-44 animate-pulse rounded bg-muted" />
+                </div>
+              )}
               {!loadingLimit && rateLimit && (
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-xl border bg-background/70 p-3 text-sm">
                   <p>Requested today: <span className="font-semibold">{rateLimit.used}/{rateLimit.limit}</span></p>
                   <p>Remaining today: <span className="font-semibold">{rateLimit.remaining}</span></p>
                   <p>Unlock in: <span className="font-semibold">{rateLimit.blocked ? unlockCountdown : `${rateLimit.resetInHours} hours`}</span></p>
@@ -866,13 +873,17 @@ export default function Home() {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Recent Attempts</h3>
               {loadingHistory && (
-                <p className="text-sm text-muted-foreground">Loading attempts...</p>
+                <div className="space-y-2">
+                  <div className="h-16 animate-pulse rounded-xl border bg-background/70" />
+                  <div className="h-16 animate-pulse rounded-xl border bg-background/70" />
+                  <div className="h-16 animate-pulse rounded-xl border bg-background/70" />
+                </div>
               )}
               {!loadingHistory && latestAttempts.length === 0 && (
                 <p className="text-sm text-muted-foreground">No attempts yet.</p>
               )}
               {latestAttempts.map((attempt) => (
-                <div key={attempt.id} className="rounded-md border p-3 text-sm">
+                <div key={attempt.id} className="rounded-xl border bg-background/70 p-3 text-sm">
                   <p className="font-medium">{attempt.learnerName}</p>
                   <p className="text-muted-foreground">{formatDate(attempt.createdAt)}</p>
                   <p>
@@ -887,7 +898,7 @@ export default function Home() {
 
       {phase === "exam" && currentQuestion && (
         <main className="grid gap-6 py-6 lg:grid-cols-[2fr_1fr]">
-          <section className="space-y-4 rounded-lg border p-4 md:p-5">
+          <section className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium">
                 Question {currentIndex + 1} of {examQuestions.length}
@@ -955,7 +966,7 @@ export default function Home() {
             )}
           </section>
 
-          <aside className="space-y-4 rounded-lg border p-4 md:p-5">
+          <aside className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
             <div>
               <h3 className="text-sm font-semibold">Progress</h3>
               <p className="text-sm text-muted-foreground">
@@ -987,29 +998,29 @@ export default function Home() {
 
       {phase === "result" && (
         <main className="space-y-6 py-6">
-          <section className="grid gap-4 rounded-lg border p-4 md:grid-cols-4 md:p-5">
-            <div className="rounded-md border p-3">
+          <section className="premium-panel grid gap-4 rounded-2xl p-4 md:grid-cols-4 md:p-5">
+            <div className="rounded-xl border bg-background/70 p-3">
               <p className="text-sm text-muted-foreground">Score</p>
               <p className="text-2xl font-semibold">
                 {score.correct}/{examQuestions.length}
               </p>
             </div>
-            <div className="rounded-md border p-3">
+            <div className="rounded-xl border bg-background/70 p-3">
               <p className="text-sm text-muted-foreground">Accuracy</p>
               <p className="text-2xl font-semibold">{score.accuracyPercent}%</p>
             </div>
-            <div className="rounded-md border p-3">
+            <div className="rounded-xl border bg-background/70 p-3">
               <p className="text-sm text-muted-foreground">Wrong</p>
               <p className="text-2xl font-semibold">{score.wrong}</p>
             </div>
-            <div className="rounded-md border p-3">
+            <div className="rounded-xl border bg-background/70 p-3">
               <p className="text-sm text-muted-foreground">Avg Time / Q</p>
               <p className="text-2xl font-semibold">{avgTimePerQuestion}s</p>
             </div>
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-            <div className="space-y-4 rounded-lg border p-4 md:p-5">
+            <div className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
               <h2 className="text-lg font-semibold">AI Review</h2>
               <p className="text-sm">{smartReview.summary}</p>
 
@@ -1032,7 +1043,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-4 rounded-lg border p-4 md:p-5">
+            <div className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
               <h2 className="text-lg font-semibold">Improvement Graph</h2>
               {history.length <= 1 && (
                 <p className="text-sm text-muted-foreground">
@@ -1084,7 +1095,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="space-y-3 rounded-lg border p-4 md:p-5">
+          <section className="premium-panel space-y-3 rounded-2xl p-4 md:p-5">
             <div className="flex flex-wrap gap-2">
               <Button onClick={resetToSetup}>Take Another Exam</Button>
               <Button
@@ -1103,7 +1114,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="space-y-3 rounded-lg border p-4 md:p-5">
+          <section className="premium-panel space-y-3 rounded-2xl p-4 md:p-5">
             <h2 className="text-lg font-semibold">Detailed Answer Explanation</h2>
             {examQuestions.map((q, idx) => {
               const answerIndex = answers[idx];

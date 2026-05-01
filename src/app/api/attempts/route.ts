@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { mcqAttemptResults, mcqGenerationRequests } from "@/lib/db/schema";
@@ -17,8 +17,11 @@ type SaveAttemptPayload = {
   avgTimePerQuestion: number;
 };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const limitParam = Number(req.nextUrl.searchParams.get("limit") ?? "20");
+    const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.floor(limitParam), 1), 50) : 20;
+
     const rows = await db()
       .select({
         id: mcqAttemptResults.id,
@@ -33,7 +36,7 @@ export async function GET() {
       })
       .from(mcqAttemptResults)
       .orderBy(desc(mcqAttemptResults.submittedAt))
-      .limit(100);
+      .limit(limit);
 
     return NextResponse.json(
       rows.map((row) => ({
