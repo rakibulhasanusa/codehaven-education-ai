@@ -62,13 +62,8 @@ function getOrCreateIdentity(req: NextRequest): {
   const tokenId = tokenIdFromCookie || crypto.randomUUID();
   const isNew = !tokenIdFromCookie;
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip")?.trim() ||
-    "unknown-ip";
-  const userAgent = req.headers.get("user-agent") || "unknown-ua";
-
-  const identity = buildClientIdentity(ip, userAgent, tokenId);
+  const deviceId = req.headers.get("x-device-id")?.trim() || tokenId;
+  const identity = buildClientIdentity(deviceId, tokenId);
   return {
     identity,
     identityKey: buildIdentityKey(identity),
@@ -155,9 +150,7 @@ export async function POST(req: NextRequest) {
     if (rate.blocked) {
       const blockedResponse = NextResponse.json(
         {
-          error: rate.resetAbuseDetected
-            ? "Repeated cookie reset detected from this network/device. Please wait until unlock."
-            : "You have requested more than the allowed limit in the last 24 hours. Please wait until unlock.",
+          error: "This device has reached the daily request limit. Please wait until unlock.",
           rateLimit: rate,
         },
         { status: 429 }
