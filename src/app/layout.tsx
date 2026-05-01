@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Figtree } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const figtree = Figtree({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -31,7 +33,11 @@ export default function RootLayout({
       className={cn("h-full", "antialiased hydrated", geistSans.variable, geistMono.variable, "font-sans", figtree.variable)}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
