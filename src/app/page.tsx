@@ -16,6 +16,7 @@ import type {
 
 const SUBJECTS: BcsSubject[] = BCS_SUBJECTS;
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
+const DEVICE_ID_STORAGE_KEY = "mcq_device_id_v1";
 
 type ExamPhase = "setup" | "exam" | "result";
 
@@ -35,6 +36,15 @@ type RateLimitStatus = {
   resetAt: string;
   resetInHours: number;
 };
+
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  const existing = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  if (existing) return existing;
+  const generated = crypto.randomUUID();
+  window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, generated);
+  return generated;
+}
 
 function formatClock(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -327,7 +337,11 @@ export default function Home() {
     async function loadRateLimit() {
       try {
         setLoadingLimit(true);
-        const res = await fetch("/api/generate-mcqs", { method: "GET", cache: "no-store" });
+        const res = await fetch("/api/generate-mcqs", {
+          method: "GET",
+          cache: "no-store",
+          headers: { "x-device-id": getDeviceId() },
+        });
         const payload = (await res.json()) as RateLimitStatus;
         if (mounted && res.ok) {
           setRateLimit(payload);
@@ -424,7 +438,10 @@ export default function Home() {
     try {
       const res = await fetch("/api/generate-mcqs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-device-id": getDeviceId(),
+        },
         body: JSON.stringify({
           learnerName: learnerName.trim() || "Learner",
           subjects: selectedSubjects,
@@ -459,7 +476,11 @@ export default function Home() {
       setCurrentIndex(0);
       setQuestionTimer(60);
       setPhase("exam");
-      const rateRes = await fetch("/api/generate-mcqs", { method: "GET", cache: "no-store" });
+      const rateRes = await fetch("/api/generate-mcqs", {
+        method: "GET",
+        cache: "no-store",
+        headers: { "x-device-id": getDeviceId() },
+      });
       if (rateRes.ok) {
         setRateLimit((await rateRes.json()) as RateLimitStatus);
       }
