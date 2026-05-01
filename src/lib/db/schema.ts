@@ -2,6 +2,7 @@ import { integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/p
 
 export const mcqGenerationRequests = pgTable("mcq_generation_requests", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    clientKey: varchar("client_key", { length: 255 }).notNull(),
     learnerName: varchar("learner_name", { length: 120 }),
     language: varchar("language", { length: 20 }).notNull(),
     requestedSubjects: jsonb("requested_subjects").$type<string[]>().notNull(),

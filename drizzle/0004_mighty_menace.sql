@@ -1,0 +1,1 @@
+ALTER TABLE "mcq_generation_requests" ALTER COLUMN "client_key" SET DATA TYPE varchar(255);

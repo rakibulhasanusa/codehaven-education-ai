@@ -4,6 +4,16 @@ import type { QuestionLanguage } from "@/lib/mcq/types";
 
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
 
+function parseRetryAfterSeconds(value: string | null): number | null {
+  if (!value) return null;
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber) && asNumber >= 0) return Math.floor(asNumber);
+  const retryDate = new Date(value);
+  if (Number.isNaN(retryDate.getTime())) return null;
+  const seconds = Math.ceil((retryDate.getTime() - Date.now()) / 1000);
+  return seconds > 0 ? seconds : 0;
+}
+
 type SyllabusResult = {
   parts: Array<{
     partNumber: number;
@@ -129,6 +139,19 @@ export async function POST(req: Request) {
         },
       }),
     });
+
+    if (aiResponse.status === 429) {
+      const retryAfterSeconds = parseRetryAfterSeconds(aiResponse.headers.get("retry-after"));
+      const errorText = await aiResponse.text();
+      return NextResponse.json(
+        {
+          error: "AI provider rate limit reached. Please retry shortly.",
+          retryAfterSeconds,
+          details: errorText.slice(0, 900),
+        },
+        { status: 429 }
+      );
+    }
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();

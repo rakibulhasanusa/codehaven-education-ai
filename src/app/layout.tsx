@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased hydrated", figtree.variable)}
+      className={cn("h-full", "antialiased hydrated", geistSans.variable, geistMono.variable, "font-sans", figtree.variable)}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">{children}</body>

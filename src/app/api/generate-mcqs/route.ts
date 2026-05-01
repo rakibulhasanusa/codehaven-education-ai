@@ -1,10 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { extractStructuredPayload, type GatewayResponseShape } from "@/lib/ai/response-parser";
 import { BCS_SUBJECT_VALUES } from "@/lib/mcq/constants";
 import type { Difficulty, QuestionLanguage, Subject, SyllabusPart } from "@/lib/mcq/types";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { generatedMcqs, mcqGenerationRequests } from "@/lib/db/schema";
+import {
+  buildClientIdentity,
+  buildIdentityKey,
+  type ClientIdentity,
+  CLIENT_KEY_COOKIE,
+  getRateLimitStatus,
+  issueSignedClientToken,
+  readSignedClientToken,
+} from "@/lib/rate-limit";
 
 type GeneratePayload = {
   subjects: Subject[];
@@ -30,6 +39,59 @@ type GeneratedQuestion = {
 const SUBJECTS: Subject[] = BCS_SUBJECT_VALUES;
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
 const DIFFICULTY: Difficulty[] = ["Basic", "Medium", "Hard"];
+const CLIENT_KEY_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+function parseRetryAfterSeconds(value: string | null): number | null {
+  if (!value) return null;
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber) && asNumber >= 0) return Math.floor(asNumber);
+  const retryDate = new Date(value);
+  if (Number.isNaN(retryDate.getTime())) return null;
+  const seconds = Math.ceil((retryDate.getTime() - Date.now()) / 1000);
+  return seconds > 0 ? seconds : 0;
+}
+
+function getOrCreateIdentity(req: NextRequest): {
+  identity: ClientIdentity;
+  identityKey: string;
+  clientCookieValue: string;
+  isNew: boolean;
+} {
+  const currentToken = req.cookies.get(CLIENT_KEY_COOKIE)?.value?.trim();
+  const tokenIdFromCookie = readSignedClientToken(currentToken);
+  const tokenId = tokenIdFromCookie || crypto.randomUUID();
+  const isNew = !tokenIdFromCookie;
+
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
+    "unknown-ip";
+  const userAgent = req.headers.get("user-agent") || "unknown-ua";
+
+  const identity = buildClientIdentity(ip, userAgent, tokenId);
+  return {
+    identity,
+    identityKey: buildIdentityKey(identity),
+    clientCookieValue: issueSignedClientToken(tokenId),
+    isNew,
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const { identity, clientCookieValue, isNew } = getOrCreateIdentity(req);
+  const status = await getRateLimitStatus(db(), identity);
+  const response = NextResponse.json(status);
+  if (isNew) {
+    response.cookies.set(CLIENT_KEY_COOKIE, clientCookieValue, {
+      maxAge: CLIENT_KEY_MAX_AGE_SECONDS,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+  }
+  return response;
+}
 
 function validatePayload(payload: GeneratePayload): string | null {
   if (!Array.isArray(payload.subjects) || payload.subjects.length === 0) {
@@ -84,10 +146,34 @@ function sanitizeQuestions(
     }));
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   let requestId: number | null = null;
+  const { identity, identityKey, clientCookieValue, isNew } = getOrCreateIdentity(req);
 
   try {
+    const rate = await getRateLimitStatus(db(), identity);
+    if (rate.blocked) {
+      const blockedResponse = NextResponse.json(
+        {
+          error: rate.resetAbuseDetected
+            ? "Repeated cookie reset detected from this network/device. Please wait until unlock."
+            : "You have requested more than the allowed limit in the last 24 hours. Please wait until unlock.",
+          rateLimit: rate,
+        },
+        { status: 429 }
+      );
+      if (isNew) {
+        blockedResponse.cookies.set(CLIENT_KEY_COOKIE, clientCookieValue, {
+          maxAge: CLIENT_KEY_MAX_AGE_SECONDS,
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+        });
+      }
+      return blockedResponse;
+    }
+
     const body = (await req.json()) as GeneratePayload;
     const validationError = validatePayload(body);
     if (validationError) {
@@ -105,6 +191,7 @@ export async function POST(req: Request) {
     const [createdRequest] = await db()
       .insert(mcqGenerationRequests)
       .values({
+        clientKey: identityKey,
         learnerName: body.learnerName?.trim() || null,
         language: body.language,
         requestedSubjects: body.subjects,
@@ -230,6 +317,19 @@ export async function POST(req: Request) {
       }),
     });
 
+    if (aiResponse.status === 429) {
+      const retryAfterSeconds = parseRetryAfterSeconds(aiResponse.headers.get("retry-after"));
+      const errorText = await aiResponse.text();
+      return NextResponse.json(
+        {
+          error: "AI provider rate limit reached. Please retry shortly.",
+          retryAfterSeconds,
+          details: errorText.slice(0, 900),
+        },
+        { status: 429 }
+      );
+    }
+
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       return NextResponse.json(
@@ -288,7 +388,17 @@ export async function POST(req: Request) {
       })
       .where(eq(mcqGenerationRequests.id, persistedRequestId));
 
-    return NextResponse.json({ requestId: persistedRequestId, questions: clean });
+    const successResponse = NextResponse.json({ requestId: persistedRequestId, questions: clean });
+    if (isNew) {
+      successResponse.cookies.set(CLIENT_KEY_COOKIE, clientCookieValue, {
+        maxAge: CLIENT_KEY_MAX_AGE_SECONDS,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      });
+    }
+    return successResponse;
   } catch (error) {
     if (requestId) {
       await db()
@@ -300,9 +410,19 @@ export async function POST(req: Request) {
         .where(eq(mcqGenerationRequests.id, requestId));
     }
 
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { error: "Failed to generate MCQs", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
+    if (isNew) {
+      errorResponse.cookies.set(CLIENT_KEY_COOKIE, clientCookieValue, {
+        maxAge: CLIENT_KEY_MAX_AGE_SECONDS,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      });
+    }
+    return errorResponse;
   }
 }

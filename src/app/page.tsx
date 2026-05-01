@@ -27,10 +27,29 @@ type SyllabusResponse = {
   parts: SyllabusPart[];
 };
 
+type RateLimitStatus = {
+  used: number;
+  remaining: number;
+  limit: number;
+  blocked: boolean;
+  resetAt: string;
+  resetInHours: number;
+};
+
 function formatClock(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function formatCountdown(targetIso: string): string {
+  const diffMs = new Date(targetIso).getTime() - Date.now();
+  if (diffMs <= 0) return "00:00:00";
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function formatDate(dateISO: string): string {
@@ -55,129 +74,193 @@ function exportQuestionsOnlyToPrintWindow(input: {
   language: QuestionLanguage;
   questions: MCQQuestion[];
 }) {
-  const labels = input.language === "Bengali" ? ["ক", "খ", "গ", "ঘ"] : ["A", "B", "C", "D"];
-  const pages = Array.from({ length: Math.ceil(input.questions.length / 20) }, (_, index) =>
-    input.questions.slice(index * 20, index * 20 + 20)
-  );
-  if (input.language === "Bengali") {
-    labels[0] = "ক";
-    labels[1] = "খ";
-    labels[2] = "গ";
-    labels[3] = "ঘ";
-  }
+  const isBn = input.language === "Bengali";
+  const labels = isBn ? ["ক", "খ", "গ", "ঘ"] : ["A", "B", "C", "D"];
   const duration = input.questions.length;
+  const pages = Array.from(
+    { length: Math.ceil(input.questions.length / 20) },
+    (_, i) => input.questions.slice(i * 20, i * 20 + 20)
+  );
 
-  const renderColumn = (items: MCQQuestion[], start: number) =>
+  const renderColumn = (items: MCQQuestion[], startIndex: number) =>
     items
-      .map((q, index) => {
-        const n = start + index + 1;
+      .map((q, i) => {
+        const n = startIndex + i + 1;
+        const isLast = i === items.length - 1;
         return `
-        <article style="break-inside:avoid;margin-bottom:5px">
-          <p style="margin:0 0 2px 0;font-weight:700;line-height:1.25;font-size:10.8px">${n}. ${escapeHtml(q.question)}</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 7px;font-size:9.8px;line-height:1.22">
+        <div style="margin-bottom:7px;break-inside:avoid">
+          <p style="margin:0 0 3px;font-size:10.5px;font-weight:600;line-height:1.35;color:#111">
+            ${n}. ${escapeHtml(q.question)}
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 6px">
             ${q.options
-            .map((opt, i) => `<p style="margin:0">${labels[i]}. ${escapeHtml(opt)}</p>`)
+            .map(
+              (opt, oi) =>
+                `<p style="margin:0;font-size:9.5px;line-height:1.3;color:#3a3328">
+                    <span style="font-style:italic;color:#7a6e5e">${labels[oi]}.</span> ${escapeHtml(opt)}
+                  </p>`
+            )
             .join("")}
           </div>
-        </article>
+        </div>
+        ${!isLast ? `<hr style="border:none;border-top:0.5px solid #d6cfc0;margin:0 0 5px">` : ""}
       `;
       })
       .join("");
 
   const renderPage = (items: MCQQuestion[], pageIndex: number) => {
-    const pageLeft = items.slice(0, 10);
-    const pageRight = items.slice(10, 20);
+    const left = items.slice(0, 10);
+    const right = items.slice(10, 20);
     const pageStart = pageIndex * 20;
+    const totalPages = pages.length;
+    const today = new Date().toLocaleDateString("en-GB");
 
     return `
-      <section class="page">
-        <div class="masthead">
+      <div style="
+        box-sizing:border-box;
+        width:210mm;
+        height:297mm;
+        background:#fffef9;
+        padding:10mm 14mm 12mm;
+        page-break-after:always;
+        position:relative;
+        overflow:hidden;
+      ">
+
+        <!-- Masthead -->
+        <div style="
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          border-bottom:1.5px solid #1a1a1a;
+          padding-bottom:7px;
+          margin-bottom:7px;
+          gap:16px;
+        ">
           <div>
-            <p class="eyebrow">BCS Smart Practice</p>
-            <h1>${input.language === "Bengali" ? "বিসিএস প্রস্তুতি" : "BCS Question Paper"}</h1>
+            <p style="margin:0 0 1px;font-size:7px;letter-spacing:3px;text-transform:uppercase;color:#7a6e5e;font-weight:600">
+              BCS Smart Practice — Official Mock
+            </p>
+            <h1 style="margin:0;font-size:18px;font-weight:700;line-height:1.1;color:#111;font-family:'Playfair Display',Georgia,serif">
+              ${isBn ? "বিসিএস প্রস্তুতি" : "BCS Preparation"}
+            </h1>
+            <p style="margin:2px 0 0;font-size:9px;color:#6b6156;font-style:italic">
+              Bangladesh Civil Service · Competitive Examination
+            </p>
           </div>
-          <div class="badge">${input.questions.length} MCQ</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="
+              background:#1a1a1a;color:#fffef9;
+              border:1px solid #1a1a1a;
+              padding:3px 9px;
+              font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+            ">${input.questions.length} MCQ</span>
+            <span style="
+              border:1px solid #1a1a1a;
+              padding:3px 9px;
+              font-size:8px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#111;
+            ">Model Test</span>
+          </div>
         </div>
-        <div class="paper-title">
-          <h2>${input.language === "Bengali" ? "কঠিন মডেল টেস্ট" : "Advanced Model Test"}</h2>
-          <p>${input.language === "Bengali" ? "প্রতিটি প্রশ্নের মান সমান। ভুল উত্তরে ০.২৫ নম্বর কাটা হবে।" : "Each question carries equal marks. Negative marking: 0.25 per wrong answer."}</p>
+
+        <!-- Meta row -->
+        <div style="
+          display:flex;justify-content:space-between;align-items:center;
+          background:#f2ede4;border:0.5px solid #c9c0af;
+          padding:4px 10px;margin-bottom:4px;
+          font-size:9px;font-weight:600;color:#3a3328;letter-spacing:0.2px;
+        ">
+          <span>${isBn ? "সময়" : "Time"}: ${duration} ${isBn ? "মিনিট" : "mins"}</span>
+          <span>${isBn ? "তারিখ" : "Date"}: ${today}</span>
+          <span>${isBn ? "পূর্ণমান" : "Marks"}: ${input.questions.length}</span>
+          <span>${isBn ? "প্রার্থী" : "Learner"}: ${escapeHtml(input.learnerName)}</span>
         </div>
-        <div class="meta">
-          <span>${input.language === "Bengali" ? "সময়" : "Time"}: ${duration} ${input.language === "Bengali" ? "মিনিট" : "minutes"}</span>
-          <span>${input.language === "Bengali" ? "তারিখ" : "Date"}: ${new Date().toLocaleDateString("en-GB")}</span>
-          <span>${input.language === "Bengali" ? "পূর্ণমান" : "Marks"}: ${input.questions.length}</span>
+
+        <!-- Notice -->
+        <p style="
+          text-align:center;font-size:8.5px;color:#7a6e5e;font-style:italic;
+          margin:0 0 6px;padding-bottom:6px;
+          border-bottom:0.5px dashed #c9c0af;
+        ">
+          ${isBn
+        ? "প্রতিটি প্রশ্নের মান সমান। প্রতিটি ভুল উত্তরের জন্য ০.২৫ নম্বর কাটা হবে। অনুত্তরিত প্রশ্নে কোনো নম্বর কাটা হবে না।"
+        : "Each question carries equal marks. Negative marking: −0.25 per wrong answer. Unanswered questions carry no penalty."
+      }
+        </p>
+
+        <!-- Ornament -->
+        <div style="display:flex;align-items:center;gap:8px;margin:0 0 8px">
+          <div style="flex:1;height:0.5px;background:#c9c0af"></div>
+          <div style="width:5px;height:5px;background:#7a6e5e;transform:rotate(45deg)"></div>
+          <div style="flex:1;height:0.5px;background:#c9c0af"></div>
         </div>
-        <div class="candidate">
-          <span>${input.language === "Bengali" ? "প্রার্থী" : "Candidate"}: ${escapeHtml(input.learnerName)}</span>
-          <span>${input.language === "Bengali" ? "বিষয়" : "Subjects"}: ${escapeHtml(input.subjects.join(", "))}</span>
+
+        <!-- Two-column questions -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;align-items:start">
+          <section>${renderColumn(left, pageStart)}</section>
+          <section style="border-left:0.5px solid #d6cfc0;padding-left:20px">
+            ${renderColumn(right, pageStart + 10)}
+          </section>
         </div>
-        <div class="columns">
-          <section>${renderColumn(pageLeft, pageStart)}</section>
-          <section class="col-right">${renderColumn(pageRight, pageStart + 10)}</section>
+
+        <!-- Footer -->
+        <div style="
+          position:absolute;bottom:8mm;left:14mm;right:14mm;
+          border-top:1px solid #1a1a1a;
+          padding-top:6px;
+          display:flex;justify-content:space-between;align-items:center;
+        ">
+          <span style="font-size:7.5px;color:#9a8e7e;letter-spacing:0.5px;text-transform:uppercase">
+            BCS Smart Practice · Official Mock Paper
+          </span>
+          <span style="font-size:9px;font-weight:600;color:#3a3328;letter-spacing:1px">
+            ${pageIndex + 1} / ${totalPages}
+          </span>
+          <span style="font-size:7.5px;color:#9a8e7e;letter-spacing:0.5px;text-transform:uppercase">
+            Confidential — For Learner Use Only
+          </span>
         </div>
-        <div class="page-footer">${pageIndex + 1} / ${pages.length}</div>
-      </section>
+      </div>
     `;
   };
 
   const popup = window.open("", "_blank", "width=1024,height=900");
-  if (!popup) {
-    return;
-  }
+  if (!popup) return;
 
   popup.document.write(`
     <html>
       <head>
         <title>BCS MCQ Question Paper</title>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Noto+Sans+Bengali:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
         <style>
-          @page{size:A4;margin:9mm;}
-          body{
-            font-family: "Noto Sans Bengali","Hind Siliguri","SolaimanLipi","Kalpurush","Arial",sans-serif;
-            background:#f3f4f1;
-            color:#171717;
-            margin:0;
-            padding:0;
+          @page { size: A4; margin: 0; }
+          * { box-sizing: border-box; }
+          body {
+            margin: 0; padding: 0;
+            background: #f5f3ef;
+            font-family: "Noto Sans Bengali", "Source Serif 4", Georgia, "Times New Roman", serif;
+            color: #111;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
-          .page{box-sizing:border-box;min-height:297mm;padding:10mm;background:#fffdfa;page-break-after:always;}
-          .header-mini,.hero,.exam-title,.subtitle{display:none;}
-          .page:last-child{page-break-after:auto;}
-          .masthead{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:7px;margin-bottom:8px;}
-          .eyebrow{margin:0 0 2px 0;font-size:10px;text-transform:uppercase;letter-spacing:1.8px;color:#5f574b;}
-          h1{margin:0;font-size:22px;line-height:1.1;letter-spacing:0;}
-          .badge{border:1px solid #111827;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700;}
-          .paper-title{text-align:center;margin:6px 0 8px;}
-          .paper-title h2{margin:0;font-size:18px;line-height:1.2;}
-          .paper-title p{margin:3px 0 0;font-size:10.5px;color:#4b5563;}
-          .meta,.candidate{display:flex;justify-content:space-between;gap:8px;border:1px solid #d8d3c8;background:#fbfaf6;padding:5px 7px;font-size:10.5px;font-weight:600;margin-bottom:5px;}
-          .candidate{font-weight:500;margin-bottom:8px;}
-          .columns{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
-          .col-right{border-left:1px solid #c9c2b7;padding-left:14px;}
-          .page-footer{margin-top:6px;text-align:center;font-size:9px;color:#6b6258;}
-          @media print { body{background:#fff;} .page{min-height:auto;padding:0;} }
+          @media print {
+            body { background: #fff; }
+            div { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
-        <p class="header-mini">Recent Job Solution</p>
-        <div class="hero">বিসিএস প্রস্তুতি</div>
-        <h2 class="exam-title">পদের নাম: অফিসার</h2>
-        <p class="subtitle">[প্রতিটি প্রশ্নের মান সমান। প্রতিটি ভুল উত্তরের জন্য .২৫ নম্বর কাটা যাবে।]</p>
-        <div class="meta">
-          <span>সময়: ${duration} মিনিট</span>
-          <span>তারিখ: ${new Date().toLocaleDateString("en-GB")}</span>
-          <span>পূর্ণমান: ${input.questions.length}</span>
-        </div>
-        <div class="meta" style="margin-bottom:14px;font-weight:500">
-          <span>প্রার্থী: ${escapeHtml(input.learnerName)}</span>
-          <span>ভাষা: ${input.language}</span>
-        </div>
-        ${pages.map(renderPage).join("")}
+        ${pages.map((pageItems, i) => renderPage(pageItems, i)).join("")}
       </body>
     </html>
   `);
 
   popup.document.close();
   popup.focus();
-  popup.print();
+  setTimeout(() => popup.print(), 800);
 }
 
 export default function Home() {
@@ -204,6 +287,9 @@ export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionTimer, setQuestionTimer] = useState(60);
   const [history, setHistory] = useState<AttemptRecord[]>([]);
+  const [rateLimit, setRateLimit] = useState<RateLimitStatus | null>(null);
+  const [unlockCountdown, setUnlockCountdown] = useState("00:00:00");
+  const [loadingLimit, setLoadingLimit] = useState(true);
   const timerRef = useRef<number | null>(null);
   const isBusy = isGenerating || isParsingSyllabus;
 
@@ -222,6 +308,40 @@ export default function Home() {
 
   useEffect(() => {
     loadHistory();
+  }, []);
+
+  useEffect(() => {
+    if (!rateLimit?.blocked) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setUnlockCountdown(formatCountdown(rateLimit.resetAt));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [rateLimit?.blocked, rateLimit?.resetAt]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadRateLimit() {
+      try {
+        setLoadingLimit(true);
+        const res = await fetch("/api/generate-mcqs", { method: "GET", cache: "no-store" });
+        const payload = (await res.json()) as RateLimitStatus;
+        if (mounted && res.ok) {
+          setRateLimit(payload);
+        }
+      } finally {
+        if (mounted) {
+          setLoadingLimit(false);
+        }
+      }
+    }
+    loadRateLimit();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -313,8 +433,14 @@ export default function Home() {
           syllabusParts,
         }),
       });
-      const payload = (await res.json()) as GenerateResponse & { error?: string };
+      const payload = (await res.json()) as GenerateResponse & {
+        error?: string;
+        rateLimit?: RateLimitStatus;
+      };
       if (!res.ok) {
+        if (res.status === 429 && payload.rateLimit) {
+          setRateLimit(payload.rateLimit as RateLimitStatus);
+        }
         throw new Error(payload.error || "Failed to generate exam questions.");
       }
 
@@ -333,6 +459,10 @@ export default function Home() {
       setCurrentIndex(0);
       setQuestionTimer(60);
       setPhase("exam");
+      const rateRes = await fetch("/api/generate-mcqs", { method: "GET", cache: "no-store" });
+      if (rateRes.ok) {
+        setRateLimit((await rateRes.json()) as RateLimitStatus);
+      }
     } catch (error) {
       setSetupError(error instanceof Error ? error.message : "Unable to generate questions.");
     } finally {
@@ -674,9 +804,28 @@ export default function Home() {
             </div>
 
             {setupError && <p className="text-sm text-destructive">{setupError}</p>}
-            <Button size="lg" onClick={startExam} disabled={isGenerating}>
+            {rateLimit && (
+              <div className={`rounded-lg border p-3 text-sm ${rateLimit.blocked ? "border-destructive bg-destructive/5" : "border-primary/30 bg-primary/5"}`}>
+                <p className="font-semibold">Premium Request Limit</p>
+                <p>Today: {rateLimit.used}/{rateLimit.limit}</p>
+                <p>Remaining: {rateLimit.remaining}</p>
+                {rateLimit.blocked ? (
+                  <p className="text-destructive font-medium">
+                    Locked. You requested more than 5 times. Unlock in {unlockCountdown}.
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">You can still request new MCQs today.</p>
+                )}
+              </div>
+            )}
+            <Button size="lg" onClick={startExam} disabled={isGenerating || rateLimit?.blocked}>
               {isGenerating ? "Generating With AI..." : "Start Exam"}
             </Button>
+            {rateLimit?.blocked && (
+              <p className="text-sm text-destructive">
+                You have requested more than 5 times. Unlock in about {rateLimit.resetInHours} hours.
+              </p>
+            )}
           </section>
 
           <aside className="space-y-4 rounded-lg border p-4 md:p-5">
@@ -700,6 +849,18 @@ export default function Home() {
                   {trendDelta > 0 ? `+${trendDelta}%` : `${trendDelta}%`}
                 </p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">Premium Request Limit</h3>
+              {loadingLimit && <p className="text-sm text-muted-foreground">Loading limit...</p>}
+              {!loadingLimit && rateLimit && (
+                <div className="rounded-md border p-3 text-sm">
+                  <p>Requested today: <span className="font-semibold">{rateLimit.used}/{rateLimit.limit}</span></p>
+                  <p>Remaining today: <span className="font-semibold">{rateLimit.remaining}</span></p>
+                  <p>Unlock in: <span className="font-semibold">{rateLimit.blocked ? unlockCountdown : `${rateLimit.resetInHours} hours`}</span></p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
