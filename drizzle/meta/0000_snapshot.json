@@ -1,115 +1,63 @@
 {
-  "id": "9b456c95-7243-4250-a5b4-c57a124b5897",
+  "id": "f86f1c21-0b79-4b86-8658-972fcc6ca65f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.exam_attempts": {
-      "name": "exam_attempts",
+    "public.generated_mcqs": {
+      "name": "generated_mcqs",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "integer",
           "primaryKey": true,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "identity": {
+            "type": "always",
+            "name": "generated_mcqs_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_id": {
+          "name": "question_id",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
         },
         "learner_name": {
           "name": "learner_name",
-          "type": "text",
+          "type": "varchar(120)",
           "primaryKey": false,
-          "notNull": true
-        },
-        "language": {
-          "name": "language",
-          "type": "question_language",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subjects": {
-          "name": "subjects",
-          "type": "subject[]",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "question_count": {
-          "name": "question_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "score": {
-          "name": "score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accuracy_percent": {
-          "name": "accuracy_percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "avg_time_per_question": {
-          "name": "avg_time_per_question",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.exam_questions": {
-      "name": "exam_questions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "attempt_id": {
-          "name": "attempt_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "subject": {
           "name": "subject",
-          "type": "subject",
-          "typeSchema": "public",
+          "type": "varchar(120)",
           "primaryKey": false,
           "notNull": true
         },
         "language": {
           "name": "language",
-          "type": "question_language",
-          "typeSchema": "public",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true
         },
         "difficulty": {
           "name": "difficulty",
-          "type": "question_difficulty",
-          "typeSchema": "public",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true
         },
@@ -117,7 +65,7 @@
           "name": "syllabus_part",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "topic": {
           "name": "topic",
@@ -133,7 +81,7 @@
         },
         "options": {
           "name": "options",
-          "type": "text[]",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -159,12 +107,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "exam_questions_attempt_id_exam_attempts_id_fk": {
-          "name": "exam_questions_attempt_id_exam_attempts_id_fk",
-          "tableFrom": "exam_questions",
-          "tableTo": "exam_attempts",
+        "generated_mcqs_request_id_mcq_generation_requests_id_fk": {
+          "name": "generated_mcqs_request_id_mcq_generation_requests_id_fk",
+          "tableFrom": "generated_mcqs",
+          "tableTo": "mcq_generation_requests",
           "columnsFrom": [
-            "attempt_id"
+            "request_id"
           ],
           "columnsTo": [
             "id"
@@ -178,43 +126,213 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.mcq_attempt_results": {
+      "name": "mcq_attempt_results",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "mcq_attempt_results_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "learner_name": {
+          "name": "learner_name",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "language": {
+          "name": "language",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subjects": {
+          "name": "subjects",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "question_count": {
+          "name": "question_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wrong": {
+          "name": "wrong",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unanswered": {
+          "name": "unanswered",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accuracy_percent": {
+          "name": "accuracy_percent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avg_time_per_question": {
+          "name": "avg_time_per_question",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mcq_attempt_results_request_id_mcq_generation_requests_id_fk": {
+          "name": "mcq_attempt_results_request_id_mcq_generation_requests_id_fk",
+          "tableFrom": "mcq_attempt_results",
+          "tableTo": "mcq_generation_requests",
+          "columnsFrom": [
+            "request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mcq_generation_requests": {
+      "name": "mcq_generation_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "mcq_generation_requests_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "learner_name": {
+          "name": "learner_name",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "language": {
+          "name": "language",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_subjects": {
+          "name": "requested_subjects",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_subject_count": {
+          "name": "requested_subject_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_question_count": {
+          "name": "requested_question_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "generated_question_count": {
+          "name": "generated_question_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
-  "enums": {
-    "public.question_difficulty": {
-      "name": "question_difficulty",
-      "schema": "public",
-      "values": [
-        "Basic",
-        "Medium",
-        "Hard"
-      ]
-    },
-    "public.question_language": {
-      "name": "question_language",
-      "schema": "public",
-      "values": [
-        "English",
-        "Bengali"
-      ]
-    },
-    "public.subject": {
-      "name": "subject",
-      "schema": "public",
-      "values": [
-        "বাংলা ভাষা ও সাহিত্য",
-        "English Language and Literature",
-        "বাংলাদেশ বিষয়াবলি",
-        "আন্তর্জাতিক বিষয়াবলি",
-        "ভূগোল, পরিবেশ ও দুর্যোগ ব্যবস্থাপনা",
-        "সাধারণ বিজ্ঞান",
-        "কম্পিউটার ও তথ্য প্রযুক্তি",
-        "গাণিতিক যুক্তি",
-        "মানসিক দক্ষতা",
-        "নৈতিকতা, মূল্যবোধ ও সুশাসন"
-      ]
-    }
-  },
+  "enums": {},
   "schemas": {},
   "sequences": {},
   "roles": {},

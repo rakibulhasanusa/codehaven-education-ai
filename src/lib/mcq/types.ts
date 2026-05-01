@@ -1,14 +1,21 @@
 export type Subject =
-  | "বাংলা ভাষা ও সাহিত্য"
+  | "Bengali Language and Literature"
   | "English Language and Literature"
-  | "বাংলাদেশ বিষয়াবলি"
-  | "আন্তর্জাতিক বিষয়াবলি"
-  | "ভূগোল, পরিবেশ ও দুর্যোগ ব্যবস্থাপনা"
-  | "সাধারণ বিজ্ঞান"
-  | "কম্পিউটার ও তথ্য প্রযুক্তি"
-  | "গাণিতিক যুক্তি"
-  | "মানসিক দক্ষতা"
-  | "নৈতিকতা, মূল্যবোধ ও সুশাসন";
+  | "Bangladesh Studies"
+  | "International Studies"
+  | "Geography, Environment and Disaster Management"
+  | "General Science"
+  | "Computer Science"
+  | "Mathematical Reasoning"
+  | "Mental Ability"
+  | "Ethics, Values and Good Governance";
+
+export type BcsSubject = {
+  name: string;
+  value: Subject;
+  username: string;
+};
+
 export type QuestionLanguage = "English" | "Bengali";
 export type Difficulty = "Basic" | "Medium" | "Hard";
 

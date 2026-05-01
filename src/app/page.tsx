@@ -7,18 +7,20 @@ import { BCS_SUBJECTS } from "@/lib/mcq/constants";
 import { cn } from "@/lib/utils";
 import type {
   AttemptRecord,
+  BcsSubject,
   MCQQuestion,
   QuestionLanguage,
   Subject,
   SyllabusPart,
 } from "@/lib/mcq/types";
 
-const SUBJECTS: Subject[] = BCS_SUBJECTS;
+const SUBJECTS: BcsSubject[] = BCS_SUBJECTS;
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
 
 type ExamPhase = "setup" | "exam" | "result";
 
 type GenerateResponse = {
+  requestId: number;
   questions: MCQQuestion[];
 };
 type SyllabusResponse = {
@@ -54,9 +56,15 @@ function exportQuestionsOnlyToPrintWindow(input: {
   questions: MCQQuestion[];
 }) {
   const labels = input.language === "Bengali" ? ["ক", "খ", "গ", "ঘ"] : ["A", "B", "C", "D"];
-  const half = Math.ceil(input.questions.length / 2);
-  const left = input.questions.slice(0, half);
-  const right = input.questions.slice(half);
+  const pages = Array.from({ length: Math.ceil(input.questions.length / 20) }, (_, index) =>
+    input.questions.slice(index * 20, index * 20 + 20)
+  );
+  if (input.language === "Bengali") {
+    labels[0] = "ক";
+    labels[1] = "খ";
+    labels[2] = "গ";
+    labels[3] = "ঘ";
+  }
   const duration = input.questions.length;
 
   const renderColumn = (items: MCQQuestion[], start: number) =>
@@ -64,17 +72,53 @@ function exportQuestionsOnlyToPrintWindow(input: {
       .map((q, index) => {
         const n = start + index + 1;
         return `
-        <article style="margin-bottom:12px">
-          <p style="margin:0 0 4px 0;font-weight:600;line-height:1.4">${n}. ${escapeHtml(q.question)}</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:14px;line-height:1.4">
+        <article style="break-inside:avoid;margin-bottom:5px">
+          <p style="margin:0 0 2px 0;font-weight:700;line-height:1.25;font-size:10.8px">${n}. ${escapeHtml(q.question)}</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 7px;font-size:9.8px;line-height:1.22">
             ${q.options
-              .map((opt, i) => `<p style="margin:0">${labels[i]}. ${escapeHtml(opt)}</p>`)
-              .join("")}
+            .map((opt, i) => `<p style="margin:0">${labels[i]}. ${escapeHtml(opt)}</p>`)
+            .join("")}
           </div>
         </article>
       `;
       })
       .join("");
+
+  const renderPage = (items: MCQQuestion[], pageIndex: number) => {
+    const pageLeft = items.slice(0, 10);
+    const pageRight = items.slice(10, 20);
+    const pageStart = pageIndex * 20;
+
+    return `
+      <section class="page">
+        <div class="masthead">
+          <div>
+            <p class="eyebrow">BCS Smart Practice</p>
+            <h1>${input.language === "Bengali" ? "বিসিএস প্রস্তুতি" : "BCS Question Paper"}</h1>
+          </div>
+          <div class="badge">${input.questions.length} MCQ</div>
+        </div>
+        <div class="paper-title">
+          <h2>${input.language === "Bengali" ? "কঠিন মডেল টেস্ট" : "Advanced Model Test"}</h2>
+          <p>${input.language === "Bengali" ? "প্রতিটি প্রশ্নের মান সমান। ভুল উত্তরে ০.২৫ নম্বর কাটা হবে।" : "Each question carries equal marks. Negative marking: 0.25 per wrong answer."}</p>
+        </div>
+        <div class="meta">
+          <span>${input.language === "Bengali" ? "সময়" : "Time"}: ${duration} ${input.language === "Bengali" ? "মিনিট" : "minutes"}</span>
+          <span>${input.language === "Bengali" ? "তারিখ" : "Date"}: ${new Date().toLocaleDateString("en-GB")}</span>
+          <span>${input.language === "Bengali" ? "পূর্ণমান" : "Marks"}: ${input.questions.length}</span>
+        </div>
+        <div class="candidate">
+          <span>${input.language === "Bengali" ? "প্রার্থী" : "Candidate"}: ${escapeHtml(input.learnerName)}</span>
+          <span>${input.language === "Bengali" ? "বিষয়" : "Subjects"}: ${escapeHtml(input.subjects.join(", "))}</span>
+        </div>
+        <div class="columns">
+          <section>${renderColumn(pageLeft, pageStart)}</section>
+          <section class="col-right">${renderColumn(pageRight, pageStart + 10)}</section>
+        </div>
+        <div class="page-footer">${pageIndex + 1} / ${pages.length}</div>
+      </section>
+    `;
+  };
 
   const popup = window.open("", "_blank", "width=1024,height=900");
   if (!popup) {
@@ -86,23 +130,30 @@ function exportQuestionsOnlyToPrintWindow(input: {
       <head>
         <title>BCS MCQ Question Paper</title>
         <style>
+          @page{size:A4;margin:9mm;}
           body{
             font-family: "Noto Sans Bengali","Hind Siliguri","SolaimanLipi","Kalpurush","Arial",sans-serif;
-            color:#111;
+            background:#f3f4f1;
+            color:#171717;
             margin:0;
-            padding:24px;
+            padding:0;
           }
-          .header-mini{font-size:14px;margin-bottom:8px;}
-          .hero{
-            background:#0a0a0a;color:#fff;text-align:center;padding:12px 8px;
-            font-size:34px;font-weight:700;letter-spacing:0;
-          }
-          .exam-title{margin:12px 0 8px 0;text-align:center;font-size:38px;font-weight:700;}
-          .subtitle{margin:0 0 10px 0;text-align:center;font-size:14px;font-style:italic;}
-          .meta{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:10px;}
-          .columns{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
-          .col-right{border-left:1px solid #888;padding-left:20px;}
-          @media print { body{padding:14px;} }
+          .page{box-sizing:border-box;min-height:297mm;padding:10mm;background:#fffdfa;page-break-after:always;}
+          .header-mini,.hero,.exam-title,.subtitle{display:none;}
+          .page:last-child{page-break-after:auto;}
+          .masthead{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:7px;margin-bottom:8px;}
+          .eyebrow{margin:0 0 2px 0;font-size:10px;text-transform:uppercase;letter-spacing:1.8px;color:#5f574b;}
+          h1{margin:0;font-size:22px;line-height:1.1;letter-spacing:0;}
+          .badge{border:1px solid #111827;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700;}
+          .paper-title{text-align:center;margin:6px 0 8px;}
+          .paper-title h2{margin:0;font-size:18px;line-height:1.2;}
+          .paper-title p{margin:3px 0 0;font-size:10.5px;color:#4b5563;}
+          .meta,.candidate{display:flex;justify-content:space-between;gap:8px;border:1px solid #d8d3c8;background:#fbfaf6;padding:5px 7px;font-size:10.5px;font-weight:600;margin-bottom:5px;}
+          .candidate{font-weight:500;margin-bottom:8px;}
+          .columns{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+          .col-right{border-left:1px solid #c9c2b7;padding-left:14px;}
+          .page-footer{margin-top:6px;text-align:center;font-size:9px;color:#6b6258;}
+          @media print { body{background:#fff;} .page{min-height:auto;padding:0;} }
         </style>
       </head>
       <body>
@@ -111,7 +162,7 @@ function exportQuestionsOnlyToPrintWindow(input: {
         <h2 class="exam-title">পদের নাম: অফিসার</h2>
         <p class="subtitle">[প্রতিটি প্রশ্নের মান সমান। প্রতিটি ভুল উত্তরের জন্য .২৫ নম্বর কাটা যাবে।]</p>
         <div class="meta">
-          <span>সময়: ${duration} মিনিট</span>
+          <span>সময়: ${duration} মিনিট</span>
           <span>তারিখ: ${new Date().toLocaleDateString("en-GB")}</span>
           <span>পূর্ণমান: ${input.questions.length}</span>
         </div>
@@ -119,10 +170,7 @@ function exportQuestionsOnlyToPrintWindow(input: {
           <span>প্রার্থী: ${escapeHtml(input.learnerName)}</span>
           <span>ভাষা: ${input.language}</span>
         </div>
-        <div class="columns">
-          <section>${renderColumn(left, 0)}</section>
-          <section class="col-right">${renderColumn(right, half)}</section>
-        </div>
+        ${pages.map(renderPage).join("")}
       </body>
     </html>
   `);
@@ -135,18 +183,22 @@ function exportQuestionsOnlyToPrintWindow(input: {
 export default function Home() {
   const [phase, setPhase] = useState<ExamPhase>("setup");
   const [learnerName, setLearnerName] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([SUBJECTS[0], SUBJECTS[1]]);
-  const [questionLanguage, setQuestionLanguage] = useState<QuestionLanguage>("English");
+  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([
+    SUBJECTS[0].value,
+  ]);
+  const [questionLanguage, setQuestionLanguage] = useState<QuestionLanguage>("Bengali");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isParsingSyllabus, setIsParsingSyllabus] = useState(false);
   const [isSavingAttempt, setIsSavingAttempt] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [syllabusError, setSyllabusError] = useState<string | null>(null);
   const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
   const [syllabusParts, setSyllabusParts] = useState<SyllabusPart[]>([]);
 
   const [examQuestions, setExamQuestions] = useState<MCQQuestion[]>([]);
+  const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [answers, setAnswers] = useState<Array<number | null>>([]);
   const [timeSpent, setTimeSpent] = useState<number[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -238,11 +290,10 @@ export default function Home() {
   function toggleSubject(subject: Subject) {
     setSelectedSubjects((prev) => {
       if (prev.includes(subject)) {
-        if (prev.length === 1) {
-          return prev;
-        }
+        if (prev.length === 1) return prev; // keep at least 1
         return prev.filter((s) => s !== subject);
       }
+      if (prev.length >= 2) return prev; // block if already 2 selected
       return [...prev, subject];
     });
   }
@@ -271,7 +322,11 @@ export default function Home() {
       if (!generated.length) {
         throw new Error("No questions received from AI.");
       }
+      if (!payload.requestId) {
+        throw new Error("Generation request id not returned from backend.");
+      }
 
+      setActiveRequestId(payload.requestId);
       setExamQuestions(generated);
       setAnswers(Array(generated.length).fill(null));
       setTimeSpent(Array(generated.length).fill(0));
@@ -342,48 +397,54 @@ export default function Home() {
     if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
     }
+    setSaveError(null);
     setIsSavingAttempt(true);
     try {
+      if (!activeRequestId) {
+        throw new Error("Missing request id. Please regenerate the exam.");
+      }
+
       const res = await fetch("/api/attempts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          requestId: activeRequestId,
           learnerName: learnerName.trim() || "Learner",
           language: questionLanguage,
           subjects: selectedSubjects,
           questionCount: examQuestions.length,
           score: score.correct,
+          wrong: score.wrong,
+          unanswered: score.unanswered,
           accuracyPercent: score.accuracyPercent,
           avgTimePerQuestion,
-          questions: examQuestions.map((q) => ({
-            subject: q.subject,
-            language: q.language,
-            syllabusPart: q.syllabusPart,
-            topic: q.topic,
-            question: q.question,
-            options: q.options,
-            correctIndex: q.correctIndex,
-            explanation: q.explanation,
-          })),
         }),
       });
-      if (res.ok) {
-        await loadHistory();
+
+      const payload = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        throw new Error(payload.error || "Failed to save exam attempt.");
       }
+
+      await loadHistory();
+      setPhase("result");
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to save exam attempt.");
     } finally {
       setIsSavingAttempt(false);
-      setPhase("result");
     }
   }
 
   function resetToSetup() {
     setPhase("setup");
     setExamQuestions([]);
+    setActiveRequestId(null);
     setAnswers([]);
     setTimeSpent([]);
     setCurrentIndex(0);
     setQuestionTimer(60);
     setSetupError(null);
+    setSaveError(null);
   }
 
   const currentQuestion = examQuestions[currentIndex];
@@ -396,23 +457,108 @@ export default function Home() {
         questionLanguage === "Bengali" && "bn-readable"
       )}
     >
+      {/* ── Busy overlay ─────────────────────────────────────────────────── */}
       {isBusy && (
-        <div className="sticky top-0 z-30 mb-3 flex items-center gap-3 rounded-md border bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
-          <svg className="size-4 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-          <p className="text-sm font-medium">
-            {isGenerating
-              ? questionLanguage === "Bengali"
-                ? "MCQ তৈরি হচ্ছে, একটু অপেক্ষা করুন..."
-                : "Generating MCQs, please wait..."
-              : questionLanguage === "Bengali"
-              ? "সিলেবাস PDF বিশ্লেষণ চলছে..."
-              : "Analyzing syllabus PDF..."}
-          </p>
+        <div className="fixed inset-0 z-50 flex cursor-wait items-center justify-center bg-background/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border bg-background shadow-xl animate-in fade-in zoom-in-95 duration-200">
+
+            {/* Animated progress bar — uses Tailwind arbitrary animation value */}
+            <div className="h-[3px] w-full overflow-hidden bg-muted">
+              <div className="h-full w-3/4 animate-[progress_2.4s_cubic-bezier(.4,0,.2,1)_infinite_alternate] rounded-r-full bg-primary" />
+            </div>
+
+            <div className="p-5">
+              {/* Spinner + label */}
+              <div className="flex items-center gap-3">
+                <div className="relative h-7 w-7 shrink-0">
+                  <svg viewBox="0 0 28 28" fill="none" className="h-7 w-7 animate-spin">
+                    <circle
+                      cx="14" cy="14" r="11"
+                      stroke="currentColor"
+                      strokeOpacity="0.15"
+                      strokeWidth="2.5"
+                    />
+                    <path
+                      d="M25 14a11 11 0 0 0-11-11"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      className="text-primary"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium leading-snug">
+                    {isGenerating
+                      ? questionLanguage === "Bengali"
+                        ? "MCQ তৈরি হচ্ছে, একটু অপেক্ষা করুন..."
+                        : "Generating MCQs, please wait..."
+                      : questionLanguage === "Bengali"
+                        ? "সিলেবাস PDF বিশ্লেষণ চলছে..."
+                        : "Analyzing syllabus PDF..."}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                    {isGenerating
+                      ? questionLanguage === "Bengali"
+                        ? "Generating MCQs, please wait..."
+                        : "MCQ তৈরি হচ্ছে, একটু অপেক্ষা করুন..."
+                      : questionLanguage === "Bengali"
+                        ? "Analyzing syllabus PDF..."
+                        : "সিলেবাস PDF বিশ্লেষণ চলছে..."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2.5">
+                <div
+                  className="animate-shimmer h-2.5 w-full rounded-full bg-muted"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <div
+                  className="animate-shimmer h-2.5 w-[88%] rounded-full bg-muted"
+                  style={{ animationDelay: "80ms" }}
+                />
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div
+                    className="animate-shimmer h-[72px] rounded-lg border bg-muted/70"
+                    style={{ animationDelay: "120ms" }}
+                  />
+                  <div
+                    className="animate-shimmer h-[72px] rounded-lg border bg-muted/70"
+                    style={{ animationDelay: "160ms" }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div
+                    className="animate-shimmer h-[72px] rounded-lg border bg-muted/70"
+                    style={{ animationDelay: "200ms" }}
+                  />
+                  <div
+                    className="animate-shimmer h-[72px] rounded-lg border bg-muted/70"
+                    style={{ animationDelay: "240ms" }}
+                  />
+                </div>
+                <div
+                  className="animate-shimmer h-9 rounded-md border bg-muted/60"
+                  style={{ animationDelay: "280ms" }}
+                />
+              </div>
+
+              {/* Footer lock notice */}
+              <div className="mt-4 flex items-center gap-2 border-t pt-3">
+                <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-primary" />
+                <p className="text-xs text-muted-foreground">
+                  {questionLanguage === "Bengali"
+                    ? "কাজ শেষ না হওয়া পর্যন্ত এই পর্দায় থাকুন।"
+                    : "Stay on this screen until the work finishes."}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
+      {/* ────────────────────────────────────────────────────────────────── */}
+
       <header className="border-b pb-4">
         <h1 className="text-2xl font-semibold tracking-tight">MCQ Smart Exam Platform</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -440,20 +586,19 @@ export default function Home() {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Choose Subjects</h3>
               <div className="grid grid-cols-2 gap-2">
-                {SUBJECTS.map((subject) => {
-                  const active = selectedSubjects.includes(subject);
+                {SUBJECTS.map((subject, index) => {
+                  const active = selectedSubjects.includes(subject.value);
                   return (
                     <button
-                      key={subject}
+                      key={index}
                       type="button"
-                      onClick={() => toggleSubject(subject)}
-                      className={`min-h-12 rounded-md border px-2 py-2 text-sm leading-tight font-medium whitespace-normal ${
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background hover:bg-muted"
-                      }`}
+                      onClick={() => toggleSubject(subject.value)}
+                      className={`min-h-12 rounded-md border px-2 py-2 text-sm leading-tight font-medium whitespace-normal ${active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background hover:bg-muted"
+                        }`}
                     >
-                      {subject}
+                      {subject.name}
                     </button>
                   );
                 })}
@@ -463,7 +608,8 @@ export default function Home() {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Question Count (Auto)</h3>
               <p className="rounded-md border px-3 py-2 text-sm">
-                {selectedSubjects.length} subjects x 10 MCQs = <span className="font-semibold">{questionCount}</span>
+                {selectedSubjects.length} subjects x 10 MCQs ={" "}
+                <span className="font-semibold">{questionCount}</span>
               </p>
               <p className="text-xs text-muted-foreground">
                 Fixed rule: 10 MCQs per selected subject. Timer: 60 seconds per question.
@@ -478,11 +624,10 @@ export default function Home() {
                     key={lang}
                     type="button"
                     onClick={() => setQuestionLanguage(lang)}
-                    className={`h-10 min-w-28 rounded-md border px-4 text-sm font-medium ${
-                      questionLanguage === lang
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background hover:bg-muted"
-                    }`}
+                    className={`h-10 min-w-28 rounded-md border px-4 text-sm font-medium ${questionLanguage === lang
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:bg-muted"
+                      }`}
                   >
                     {lang}
                   </button>
@@ -502,11 +647,18 @@ export default function Home() {
                 className="block w-full cursor-pointer rounded-md border px-3 py-2 text-sm"
               />
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={parseSyllabusPdf} disabled={isParsingSyllabus}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={parseSyllabusPdf}
+                  disabled={isParsingSyllabus}
+                >
                   {isParsingSyllabus ? "Reading PDF..." : "Split Syllabus Into 8 Parts"}
                 </Button>
                 {syllabusParts.length === 8 && (
-                  <p className="self-center text-xs text-muted-foreground">8-part syllabus is ready.</p>
+                  <p className="self-center text-xs text-muted-foreground">
+                    8-part syllabus is ready.
+                  </p>
                 )}
               </div>
               {syllabusError && <p className="text-sm text-destructive">{syllabusError}</p>}
@@ -552,7 +704,9 @@ export default function Home() {
 
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Recent Attempts</h3>
-              {loadingHistory && <p className="text-sm text-muted-foreground">Loading attempts...</p>}
+              {loadingHistory && (
+                <p className="text-sm text-muted-foreground">Loading attempts...</p>
+              )}
               {!loadingHistory && latestAttempts.length === 0 && (
                 <p className="text-sm text-muted-foreground">No attempts yet.</p>
               )}
@@ -578,9 +732,8 @@ export default function Home() {
                 Question {currentIndex + 1} of {examQuestions.length}
               </p>
               <p
-                className={`rounded-md border px-3 py-1 text-sm font-semibold ${
-                  questionTimer <= 10 ? "border-destructive text-destructive" : ""
-                }`}
+                className={`rounded-md border px-3 py-1 text-sm font-semibold ${questionTimer <= 10 ? "border-destructive text-destructive" : ""
+                  }`}
               >
                 {formatClock(questionTimer)}
               </p>
@@ -603,11 +756,10 @@ export default function Home() {
                     type="button"
                     onClick={() => answerCurrentQuestion(idx)}
                     disabled={questionTimer === 0}
-                    className={`min-h-11 rounded-md border px-3 py-2 text-left text-sm ${
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background hover:bg-muted"
-                    }`}
+                    className={`min-h-11 rounded-md border px-3 py-2 text-left text-sm ${active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:bg-muted"
+                      }`}
                   >
                     {String.fromCharCode(65 + idx)}. {option}
                   </button>
@@ -634,6 +786,7 @@ export default function Home() {
                 {isSavingAttempt ? "Saving..." : "Submit Exam"}
               </Button>
             </div>
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             {questionTimer === 0 && (
               <p className="text-sm text-destructive">
                 Time is up for this question. Move to the next question or submit the exam.
@@ -655,13 +808,12 @@ export default function Home() {
                   <button
                     key={q.id}
                     onClick={() => goToQuestion(idx)}
-                    className={`h-9 rounded-md border text-xs font-semibold ${
-                      idx === currentIndex
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : answered
+                    className={`h-9 rounded-md border text-xs font-semibold ${idx === currentIndex
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : answered
                         ? "border-border bg-muted"
                         : "border-border bg-background"
-                    }`}
+                      }`}
                   >
                     {idx + 1}
                   </button>
@@ -727,9 +879,20 @@ export default function Home() {
                 </p>
               )}
               {history.length > 1 && (
-                <svg viewBox="0 0 320 160" className="h-auto w-full rounded-md border bg-background">
-                  <line x1="20" y1="140" x2="300" y2="140" stroke="currentColor" strokeWidth="1" />
-                  <line x1="20" y1="20" x2="20" y2="140" stroke="currentColor" strokeWidth="1" />
+                <svg
+                  viewBox="0 0 320 160"
+                  className="h-auto w-full rounded-md border bg-background"
+                >
+                  <line
+                    x1="20" y1="140" x2="300" y2="140"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                  />
+                  <line
+                    x1="20" y1="20" x2="20" y2="140"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                  />
                   <polyline
                     fill="none"
                     stroke="currentColor"
@@ -749,9 +912,11 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-2 text-sm">
                 {SUBJECTS.map((subject) => (
-                  <div key={subject} className="rounded-md border p-2">
-                    <p className="font-medium">{subject}</p>
-                    <p className="text-muted-foreground">{subjectStats[subject].accuracy}% correct</p>
+                  <div key={subject.name} className="rounded-md border p-2">
+                    <p className="font-medium">{subject.name}</p>
+                    <p className="text-muted-foreground">
+                      {subjectStats[subject.value]?.accuracy ?? 0}% correct
+                    </p>
                   </div>
                 ))}
               </div>
@@ -788,13 +953,21 @@ export default function Home() {
                     Q{idx + 1}. {q.question}
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Your answer: {answerIndex === null ? "Not answered" : q.options[answerIndex]}
+                    Your answer:{" "}
+                    {answerIndex === null ? "Not answered" : q.options[answerIndex]}
                   </p>
-                  <p className={`mt-1 text-sm font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}>
-                    {isCorrect ? "Correct" : "Incorrect"} | Correct answer: {q.options[q.correctIndex]}
+                  <p
+                    className={`mt-1 text-sm font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {isCorrect ? "Correct" : "Incorrect"} | Correct answer:{" "}
+                    {q.options[q.correctIndex]}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">Difficulty: {q.difficulty}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Explanation: {q.explanation}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Difficulty: {q.difficulty}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Explanation: {q.explanation}
+                  </p>
                 </article>
               );
             })}

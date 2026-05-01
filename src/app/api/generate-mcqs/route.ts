@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { extractStructuredPayload, type GatewayResponseShape } from "@/lib/ai/response-parser";
-import { BCS_SUBJECTS } from "@/lib/mcq/constants";
+import { BCS_SUBJECT_VALUES } from "@/lib/mcq/constants";
 import type { Difficulty, QuestionLanguage, Subject, SyllabusPart } from "@/lib/mcq/types";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { generatedMcqs, mcqGenerationRequests } from "@/lib/db/schema";
 
 type GeneratePayload = {
   subjects: Subject[];
@@ -24,7 +27,7 @@ type GeneratedQuestion = {
   explanation: string;
 };
 
-const SUBJECTS: Subject[] = BCS_SUBJECTS;
+const SUBJECTS: Subject[] = BCS_SUBJECT_VALUES;
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
 const DIFFICULTY: Difficulty[] = ["Basic", "Medium", "Hard"];
 
@@ -71,7 +74,7 @@ function sanitizeQuestions(
       ...q,
       id: q.id || `ai-${Date.now()}-${idx + 1}`,
       language: requestedLanguage,
-      difficulty: q.difficulty,
+      difficulty: "Hard",
       syllabusPart:
         typeof q.syllabusPart === "number" && q.syllabusPart >= 1 && q.syllabusPart <= 8
           ? q.syllabusPart
@@ -82,6 +85,8 @@ function sanitizeQuestions(
 }
 
 export async function POST(req: Request) {
+  let requestId: number | null = null;
+
   try {
     const body = (await req.json()) as GeneratePayload;
     const validationError = validatePayload(body);
@@ -97,6 +102,21 @@ export async function POST(req: Request) {
       );
     }
 
+    const [createdRequest] = await db()
+      .insert(mcqGenerationRequests)
+      .values({
+        learnerName: body.learnerName?.trim() || null,
+        language: body.language,
+        requestedSubjects: body.subjects,
+        requestedSubjectCount: body.subjects.length,
+        requestedQuestionCount: body.questionCount,
+        status: "pending",
+      })
+      .returning({ id: mcqGenerationRequests.id });
+
+    requestId = createdRequest.id;
+    const persistedRequestId = requestId;
+
     const model = process.env.AI_MODEL || "openai/gpt-5.4-mini";
     const baseUrl = process.env.AI_GATEWAY_BASE_URL || "https://ai-gateway.vercel.sh/v1";
     const url = process.env.AI_RESPONSES_URL || `${baseUrl}/responses`;
@@ -109,11 +129,11 @@ export async function POST(req: Request) {
     const syllabusInstruction =
       body.syllabusParts && body.syllabusParts.length === 8
         ? [
-            "Follow this BCS syllabus split (8 parts), and distribute questions across these parts as evenly as possible:",
-            ...body.syllabusParts.map(
-              (part) => `Part ${part.partNumber}: ${part.title} - ${part.focus}`
-            ),
-          ].join("\n")
+          "Follow this BCS syllabus split (8 parts), and distribute questions across these parts as evenly as possible:",
+          ...body.syllabusParts.map(
+            (part) => `Part ${part.partNumber}: ${part.title} - ${part.focus}`
+          ),
+        ].join("\n")
         : "No syllabus split provided. Generate from the selected subjects.";
 
     const prompt = [
@@ -121,10 +141,13 @@ export async function POST(req: Request) {
       `Subjects: ${body.subjects.join(", ")}.`,
       `Question language: ${body.language}.`,
       "Generate exactly 10 questions per selected subject.",
-      "For each subject include a difficulty mix across Basic, Medium, Hard (at least one from each).",
+      "Every question must be difficult enough for advanced BCS/job-solution practice.",
+      "Set difficulty to Hard for every question.",
       languageInstruction,
       "Use difficulty labels exactly: Basic, Medium, Hard.",
-      "Each question must have exactly 4 options, one correct answer, and a short, accurate explanation.",
+      "Use related BCS preliminary, PSC, bank, teacher-registration, and recent job-solution patterns as inspiration without copying full copyrighted passages.",
+      "Each question must have exactly 4 plausible options, one correct answer, and a short, accurate explanation.",
+      "Prefer analytical, exception-based, chronology, grammar nuance, data interpretation, and concept-combination questions over direct memorization.",
       "Avoid repeated questions.",
       "Set syllabusPart (1-8) for each question.",
       syllabusInstruction,
@@ -239,8 +262,44 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ questions: clean });
+    await db().insert(generatedMcqs).values(
+      clean.map((q) => ({
+        requestId: persistedRequestId,
+        questionId: q.id,
+        learnerName: body.learnerName?.trim() || null,
+        subject: q.subject,
+        language: q.language,
+        difficulty: q.difficulty,
+        syllabusPart: q.syllabusPart ?? 1,
+        topic: q.topic,
+        question: q.question,
+        options: q.options,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+      }))
+    );
+
+    await db()
+      .update(mcqGenerationRequests)
+      .set({
+        status: "completed",
+        generatedQuestionCount: clean.length,
+        completedAt: new Date(),
+      })
+      .where(eq(mcqGenerationRequests.id, persistedRequestId));
+
+    return NextResponse.json({ requestId: persistedRequestId, questions: clean });
   } catch (error) {
+    if (requestId) {
+      await db()
+        .update(mcqGenerationRequests)
+        .set({
+          status: "failed",
+          failureReason: error instanceof Error ? error.message : "Unknown error",
+        })
+        .where(eq(mcqGenerationRequests.id, requestId));
+    }
+
     return NextResponse.json(
       { error: "Failed to generate MCQs", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
