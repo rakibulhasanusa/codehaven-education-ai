@@ -1,1 +1,0 @@
-ALTER TABLE "mcq_generation_requests" ADD COLUMN "client_key" varchar(128) NOT NULL;

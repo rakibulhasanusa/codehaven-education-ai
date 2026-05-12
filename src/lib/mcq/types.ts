@@ -1,14 +1,4 @@
-export type Subject =
-  | "Bengali Language and Literature"
-  | "English Language and Literature"
-  | "Bangladesh Studies"
-  | "International Studies"
-  | "Geography, Environment and Disaster Management"
-  | "General Science"
-  | "Computer Science"
-  | "Mathematical Reasoning"
-  | "Mental Ability"
-  | "Ethics, Values and Good Governance";
+export type Subject = string;
 
 export type BcsSubject = {
   name: string;

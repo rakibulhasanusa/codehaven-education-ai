@@ -1,5 +1,4 @@
 import type { AttemptRecord, MCQQuestion, QuestionLanguage, Subject, SubjectStat } from "./types";
-import { BCS_SUBJECT_VALUES } from "./constants";
 
 type BuildReviewInput = {
   questions: MCQQuestion[];
@@ -42,19 +41,19 @@ export function calculateSubjectStats(
   questions: MCQQuestion[],
   answers: Array<number | null>
 ): Record<Subject, SubjectStat> {
-  const subjects: Subject[] = BCS_SUBJECT_VALUES;
-  const result = Object.fromEntries(
-    subjects.map((subject) => [subject, { total: 0, correct: 0, accuracy: 0 }])
-  ) as Record<Subject, SubjectStat>;
+  const result: Record<Subject, SubjectStat> = {};
 
   questions.forEach((q, index) => {
+    if (!result[q.subject]) {
+      result[q.subject] = { total: 0, correct: 0, accuracy: 0 };
+    }
     result[q.subject].total += 1;
     if (answers[index] === q.correctIndex) {
       result[q.subject].correct += 1;
     }
   });
 
-  subjects.forEach((subject) => {
+  (Object.keys(result) as Subject[]).forEach((subject) => {
     const stat = result[subject];
     stat.accuracy = stat.total ? Math.round((stat.correct / stat.total) * 100) : 0;
   });

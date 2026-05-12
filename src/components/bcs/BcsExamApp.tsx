@@ -7,16 +7,14 @@ import { BCS_SUBJECTS } from "@/lib/mcq/constants";
 import { cn } from "@/lib/utils";
 import type {
   AttemptRecord,
-  BcsSubject,
   MCQQuestion,
   QuestionLanguage,
   Subject,
 } from "@/lib/mcq/types";
 
-const SUBJECTS: BcsSubject[] = BCS_SUBJECTS;
+const DEFAULT_SUBJECTS: Subject[] = BCS_SUBJECTS.map((subject) => subject.value);
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
-const EXAM_QUESTION_CHUNK_SIZE_MOBILE = 3;
-const EXAM_QUESTION_CHUNK_SIZE_DESKTOP = 5;
+const DEVICE_ID_STORAGE_KEY = "mcq_device_id_v1";
 
 type ExamPhase = "setup" | "exam" | "result";
 
@@ -25,21 +23,27 @@ type GenerateResponse = {
   questions: MCQQuestion[];
 };
 
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  const existing = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  if (existing) return existing;
+  const generated = crypto.randomUUID();
+  window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, generated);
+  return generated;
+}
+
 function formatClock(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+
 function formatDate(dateISO: string): string {
-  const date = new Date(dateISO);
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown date";
-  }
   return new Intl.DateTimeFormat("en-BD", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(date);
+  }).format(new Date(dateISO));
 }
 
 function escapeHtml(value: string): string {
@@ -246,29 +250,16 @@ function exportQuestionsOnlyToPrintWindow(input: {
   setTimeout(() => popup.print(), 800);
 }
 
-function chunkExamQuestions(
-  questions: MCQQuestion[],
-  chunkSize: number
-): Array<Array<{ question: MCQQuestion; index: number }>> {
-  const chunks: Array<Array<{ question: MCQQuestion; index: number }>> = [];
-  for (let start = 0; start < questions.length; start += chunkSize) {
-    chunks.push(
-      questions.slice(start, start + chunkSize).map((question, offset) => ({
-        question,
-        index: start + offset,
-      }))
-    );
-  }
-  return chunks;
-}
-
-export default function Home() {
+export default function BcsExamApp() {
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>(DEFAULT_SUBJECTS);
   const [phase, setPhase] = useState<ExamPhase>("setup");
   const [learnerName, setLearnerName] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([
-    SUBJECTS[0].value,
+    DEFAULT_SUBJECTS[0],
   ]);
   const [questionLanguage, setQuestionLanguage] = useState<QuestionLanguage>("Bengali");
+  const [referenceYearFrom, setReferenceYearFrom] = useState("");
+  const [referenceYearTo, setReferenceYearTo] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingAttempt, setIsSavingAttempt] = useState(false);
@@ -278,10 +269,10 @@ export default function Home() {
   const [examQuestions, setExamQuestions] = useState<MCQQuestion[]>([]);
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [answers, setAnswers] = useState<Array<number | null>>([]);
-  const [totalTimeSpent, setTotalTimeSpent] = useState(0);
+  const [timeSpent, setTimeSpent] = useState<number[]>([]);
   const [examTimer, setExamTimer] = useState(0);
+  const [elapsedExamSeconds, setElapsedExamSeconds] = useState(0);
   const [history, setHistory] = useState<AttemptRecord[]>([]);
-  const [examChunkSize, setExamChunkSize] = useState(EXAM_QUESTION_CHUNK_SIZE_DESKTOP);
   const timerRef = useRef<number | null>(null);
   const isBusy = isGenerating;
 
@@ -303,17 +294,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const updateChunkSize = () => {
-      setExamChunkSize(
-        window.innerWidth >= 1024 ? EXAM_QUESTION_CHUNK_SIZE_DESKTOP : EXAM_QUESTION_CHUNK_SIZE_MOBILE
-      );
-    };
+    let cancelled = false;
 
-    updateChunkSize();
-    window.addEventListener("resize", updateChunkSize);
+    void (async () => {
+      try {
+        const response = await fetch("/api/admin/subjects", { cache: "no-store" });
+        const json = (await response.json()) as { subjects?: string[] };
+        if (!response.ok || cancelled) return;
+
+        const subjects = Array.isArray(json.subjects) ? json.subjects.filter(Boolean) : [];
+        if (!subjects.length) return;
+
+        setAvailableSubjects(subjects);
+        setSelectedSubjects((prev) => {
+          const kept = prev.filter((subject) => subjects.includes(subject));
+          return kept.length ? kept : [subjects[0]];
+        });
+      } catch {
+        if (!cancelled) {
+          setAvailableSubjects(DEFAULT_SUBJECTS);
+        }
+      }
+    })();
 
     return () => {
-      window.removeEventListener("resize", updateChunkSize);
+      cancelled = true;
     };
   }, []);
 
@@ -323,11 +328,8 @@ export default function Home() {
     }
 
     timerRef.current = window.setInterval(() => {
-      setExamTimer((prev) => {
-        if (prev <= 0) return 0;
-        setTotalTimeSpent((old) => old + 1);
-        return prev - 1;
-      });
+      setExamTimer((prev) => (prev <= 0 ? 0 : prev - 1));
+      setElapsedExamSeconds((prev) => prev + 1);
     }, 1000);
 
     return () => {
@@ -342,23 +344,17 @@ export default function Home() {
     () => calculateSubjectStats(examQuestions, answers),
     [examQuestions, answers]
   );
-  const smartReview = useMemo(() => {
-    const avg = examQuestions.length ? Math.round(totalTimeSpent / examQuestions.length) : 0;
-    return buildSmartReview({
-      questions: examQuestions,
-      answers,
-      timeSpent: examQuestions.map(() => avg),
-    });
-  }, [examQuestions, answers, totalTimeSpent]);
+  const smartReview = useMemo(
+    () => buildSmartReview({ questions: examQuestions, answers, timeSpent }),
+    [examQuestions, answers, timeSpent]
+  );
 
-  const avgTimePerQuestion = useMemo(
-    () => (examQuestions.length ? Math.round(totalTimeSpent / examQuestions.length) : 0),
-    [totalTimeSpent, examQuestions.length]
-  );
-  const questionChunks = useMemo(
-    () => chunkExamQuestions(examQuestions, examChunkSize),
-    [examQuestions, examChunkSize]
-  );
+  const avgTimePerQuestion = useMemo(() => {
+    if (!examQuestions.length) {
+      return 0;
+    }
+    return Math.round(elapsedExamSeconds / examQuestions.length);
+  }, [elapsedExamSeconds, examQuestions.length]);
 
   const latestAttempts = useMemo(() => [...history].slice(0, 8), [history]);
   const bestScore = useMemo(
@@ -395,16 +391,19 @@ export default function Home() {
     setSetupError(null);
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/generate-mcqs", {
+      const res = await fetch("/api/bcs/generate-mcqs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-device-id": getDeviceId(),
         },
         body: JSON.stringify({
           learnerName: learnerName.trim() || "Learner",
           subjects: selectedSubjects,
           language: questionLanguage,
           questionCount,
+          referenceYearFrom: referenceYearFrom.trim() ? Number(referenceYearFrom.trim()) : undefined,
+          referenceYearTo: referenceYearTo.trim() ? Number(referenceYearTo.trim()) : undefined,
         }),
       });
       const payload = (await res.json()) as GenerateResponse & { error?: string };
@@ -423,8 +422,9 @@ export default function Home() {
       setActiveRequestId(payload.requestId);
       setExamQuestions(generated);
       setAnswers(Array(generated.length).fill(null));
-      setTotalTimeSpent(0);
+      setTimeSpent(Array(generated.length).fill(0));
       setExamTimer(generated.length * 60);
+      setElapsedExamSeconds(0);
       setPhase("exam");
     } catch (error) {
       setSetupError(error instanceof Error ? error.message : "Unable to generate questions.");
@@ -475,6 +475,10 @@ export default function Home() {
       }
 
       await loadHistory();
+      const evenSplit = examQuestions.length
+        ? Math.round(elapsedExamSeconds / examQuestions.length)
+        : 0;
+      setTimeSpent(Array(examQuestions.length).fill(evenSplit));
       setPhase("result");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Failed to save exam attempt.");
@@ -488,11 +492,13 @@ export default function Home() {
     setExamQuestions([]);
     setActiveRequestId(null);
     setAnswers([]);
-    setTotalTimeSpent(0);
+    setTimeSpent([]);
     setExamTimer(0);
+    setElapsedExamSeconds(0);
     setSetupError(null);
     setSaveError(null);
   }
+
   const answeredCount = answers.filter((a) => a !== null).length;
 
   return (
@@ -630,21 +636,21 @@ export default function Home() {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Choose Subjects</h3>
+                <h3 className="text-sm font-semibold">Choose Subjects</h3>
               <div className="grid grid-cols-2 gap-2">
-                {SUBJECTS.map((subject, index) => {
-                  const active = selectedSubjects.includes(subject.value);
+                {availableSubjects.map((subject) => {
+                  const active = selectedSubjects.includes(subject);
                   return (
                     <button
-                      key={index}
+                      key={subject}
                       type="button"
-                      onClick={() => toggleSubject(subject.value)}
+                      onClick={() => toggleSubject(subject)}
                       className={`min-h-12 rounded-md border px-2 py-2 text-sm leading-tight font-medium whitespace-normal ${active
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background hover:bg-muted"
                         }`}
                     >
-                      {subject.name}
+                      {subject}
                     </button>
                   );
                 })}
@@ -658,7 +664,7 @@ export default function Home() {
                 <span className="font-semibold">{questionCount}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                Fixed rule: 10 MCQs per selected subject. Total timer: 1 minute per question combined.
+                Fixed rule: 10 MCQs per selected subject. Total exam time: 1 minute per question combined.
               </p>
             </div>
 
@@ -681,6 +687,29 @@ export default function Home() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Bengali mode generates full Bangla questions and explanations.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">Reference Year Filter (Optional)</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={referenceYearFrom}
+                  onChange={(e) => setReferenceYearFrom(e.target.value)}
+                  placeholder="From year (e.g. 2018)"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <input
+                  value={referenceYearTo}
+                  onChange={(e) => setReferenceYearTo(e.target.value)}
+                  placeholder="To year (e.g. 2024)"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                AI will use the selected subjects and this year range as generation context; generated questions are saved to SQL only.
               </p>
             </div>
 
@@ -753,70 +782,41 @@ export default function Home() {
                 {formatClock(examTimer)}
               </p>
             </div>
-
-            <div className="space-y-5">
-              {questionChunks.map((chunk, chunkIndex) => {
-                const chunkStart = chunkIndex * examChunkSize;
-                const chunkAnswered = chunk.reduce(
-                  (count, { index }) => count + (answers[index] !== null ? 1 : 0),
-                  0
-                );
-                return (
-                  <section key={`chunk-${chunkIndex}`} className="overflow-hidden rounded-xl border bg-background/40 p-3">
-                    <div className="sticky top-0 z-10 mb-3 space-y-2 bg-background/95 py-2 backdrop-blur">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold">
-                          Questions {chunkStart + 1}-{chunkStart + chunk.length}
-                        </h3>
-                        <p className="rounded-full border px-2 py-1 text-xs font-medium text-muted-foreground">
-                          {chunkAnswered}/{chunk.length} answered
-                        </p>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary transition-[width] duration-300"
-                          style={{ width: `${(chunkAnswered / chunk.length) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                    <ol start={chunkStart + 1} className="space-y-3">
-                      {chunk.map(({ question: q, index: qIndex }) => (
-                        <li key={q.id} className="list-none">
-                          <article className="rounded-lg border p-3">
-                            <h2 className="text-base font-semibold">
-                              {qIndex + 1}. {q.question}
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              Subject: {q.subject} | Topic: {q.topic} | Language: {q.language}
-                              {" | "}Difficulty: {q.difficulty}
-                              {q.syllabusPart ? ` | Part: ${q.syllabusPart}` : ""}
-                            </p>
-                            <div className="mt-3 grid gap-2">
-                              {q.options.map((option, optIndex) => {
-                                const active = answers[qIndex] === optIndex;
-                                return (
-                                  <button
-                                    key={`${q.id}-${optIndex}`}
-                                    type="button"
-                                    onClick={() => answerQuestion(qIndex, optIndex)}
-                                    disabled={examTimer === 0}
-                                    className={`min-h-11 rounded-md border px-3 py-2 text-left text-sm ${active
-                                      ? "border-primary bg-primary text-primary-foreground"
-                                      : "border-border bg-background hover:bg-muted"
-                                      }`}
-                                  >
-                                    {String.fromCharCode(65 + optIndex)}. {option}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </article>
-                        </li>
-                      ))}
-                    </ol>
-                  </section>
-                );
-              })}
+            <p className="text-sm text-muted-foreground">
+              One combined timer is running for the full exam. Answer from the full list below.
+            </p>
+            <div className="space-y-4">
+              {examQuestions.map((question, qIdx) => (
+                <article key={question.id} className="rounded-xl border p-4">
+                  <h2 className="text-base font-semibold">
+                    {qIdx + 1}. {question.question}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Subject: {question.subject} | Topic: {question.topic} | Language: {question.language}
+                    {" | "}Difficulty: {question.difficulty}
+                    {question.syllabusPart ? ` | Part: ${question.syllabusPart}` : ""}
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    {question.options.map((option, oIdx) => {
+                      const active = answers[qIdx] === oIdx;
+                      return (
+                        <button
+                          key={`${question.id}-${oIdx}`}
+                          type="button"
+                          onClick={() => answerQuestion(qIdx, oIdx)}
+                          disabled={examTimer === 0}
+                          className={`min-h-11 rounded-md border px-3 py-2 text-left text-sm ${active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:bg-muted"
+                            }`}
+                        >
+                          {String.fromCharCode(65 + oIdx)}. {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </article>
+              ))}
             </div>
 
             <div className="flex gap-2">
@@ -827,14 +827,13 @@ export default function Home() {
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             {examTimer === 0 && (
               <p className="text-sm text-destructive">
-                Total exam time is up. Submit now.
+                Total exam time is over. Please submit now.
               </p>
             )}
           </section>
-
           <aside className="premium-panel sticky top-3 h-fit space-y-4 rounded-2xl p-4 md:p-5">
             <div>
-              <h3 className="text-sm font-semibold">Progress</h3>
+              <h3 className="text-sm font-semibold">Exam Status</h3>
               <p className="text-sm text-muted-foreground">
                 Answered {answeredCount}/{examQuestions.length}
               </p>
@@ -881,6 +880,12 @@ export default function Home() {
             <div className="rounded-xl border bg-background/70 p-3">
               <p className="text-sm text-muted-foreground">Avg Time / Q</p>
               <p className="text-2xl font-semibold">{avgTimePerQuestion}s</p>
+            </div>
+            <div className="rounded-xl border bg-background/70 p-3">
+              <p className="text-sm text-muted-foreground">Answered</p>
+              <p className="text-2xl font-semibold">
+                {answeredCount}/{examQuestions.length}
+              </p>
             </div>
           </section>
 
@@ -948,11 +953,11 @@ export default function Home() {
               )}
 
               <div className="grid grid-cols-2 gap-2 text-sm">
-                {SUBJECTS.map((subject) => (
-                  <div key={subject.name} className="rounded-md border p-2">
-                    <p className="font-medium">{subject.name}</p>
+                {Object.keys(subjectStats).map((subject) => (
+                  <div key={subject} className="rounded-md border p-2">
+                    <p className="font-medium">{subject}</p>
                     <p className="text-muted-foreground">
-                      {subjectStats[subject.value]?.accuracy ?? 0}% correct
+                      {subjectStats[subject]?.accuracy ?? 0}% correct
                     </p>
                   </div>
                 ))}
@@ -981,66 +986,33 @@ export default function Home() {
 
           <section className="premium-panel space-y-3 rounded-2xl p-4 md:p-5">
             <h2 className="text-lg font-semibold">Detailed Answer Explanation</h2>
-            <div className="space-y-5">
-              {questionChunks.map((chunk, chunkIndex) => {
-                const chunkStart = chunkIndex * examChunkSize;
-                const chunkCorrect = chunk.reduce((count, { index, question }) => {
-                  const answerIndex = answers[index];
-                  return count + (answerIndex === question.correctIndex ? 1 : 0);
-                }, 0);
-                return (
-                  <section key={`result-chunk-${chunkIndex}`} className="overflow-hidden rounded-xl border bg-background/40 p-3">
-                    <div className="sticky top-0 z-10 mb-3 space-y-2 bg-background/95 py-2 backdrop-blur">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold">
-                          Review Questions {chunkStart + 1}-{chunkStart + chunk.length}
-                        </h3>
-                        <p className="rounded-full border px-2 py-1 text-xs font-medium text-muted-foreground">
-                          {chunkCorrect}/{chunk.length} correct
-                        </p>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
-                          style={{ width: `${(chunkCorrect / chunk.length) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                    <ol start={chunkStart + 1} className="space-y-3">
-                      {chunk.map(({ question: q, index: idx }) => {
-                        const answerIndex = answers[idx];
-                        const isCorrect = answerIndex === q.correctIndex;
-                        return (
-                          <li key={q.id} className="list-none">
-                            <article className="rounded-md border p-3">
-                              <h3 className="font-medium">
-                                Q{idx + 1}. {q.question}
-                              </h3>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Your answer:{" "}
-                                {answerIndex === null ? "Not answered" : q.options[answerIndex]}
-                              </p>
-                              <p
-                                className={`mt-1 text-sm font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}
-                              >
-                                {isCorrect ? "Correct" : "Incorrect"} | Correct answer:{" "}
-                                {q.options[q.correctIndex]}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Difficulty: {q.difficulty}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Explanation: {q.explanation}
-                              </p>
-                            </article>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </section>
-                );
-              })}
-            </div>
+            {examQuestions.map((q, idx) => {
+              const answerIndex = answers[idx];
+              const isCorrect = answerIndex === q.correctIndex;
+              return (
+                <article key={q.id} className="rounded-md border p-3">
+                  <h3 className="font-medium">
+                    Q{idx + 1}. {q.question}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Your answer:{" "}
+                    {answerIndex === null ? "Not answered" : q.options[answerIndex]}
+                  </p>
+                  <p
+                    className={`mt-1 text-sm font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {isCorrect ? "Correct" : "Incorrect"} | Correct answer:{" "}
+                    {q.options[q.correctIndex]}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Difficulty: {q.difficulty}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Explanation: {q.explanation}
+                  </p>
+                </article>
+              );
+            })}
           </section>
         </main>
       )}

@@ -1,11 +1,11 @@
 {
-  "id": "f86f1c21-0b79-4b86-8658-972fcc6ca65f",
+  "id": "295f5fe1-eac5-4891-b409-6d58097bac33",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.generated_mcqs": {
-      "name": "generated_mcqs",
+    "public.questions": {
+      "name": "questions",
       "schema": "",
       "columns": {
         "id": {
@@ -15,7 +15,7 @@
           "notNull": true,
           "identity": {
             "type": "always",
-            "name": "generated_mcqs_id_seq",
+            "name": "questions_id_seq",
             "schema": "public",
             "increment": "1",
             "startWith": "1",
@@ -25,51 +25,9 @@
             "cycle": false
           }
         },
-        "request_id": {
-          "name": "request_id",
+        "subject_id": {
+          "name": "subject_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "question_id": {
-          "name": "question_id",
-          "type": "varchar(128)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "learner_name": {
-          "name": "learner_name",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject": {
-          "name": "subject",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "language": {
-          "name": "language",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "difficulty": {
-          "name": "difficulty",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "syllabus_part": {
-          "name": "syllabus_part",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "topic": {
-          "name": "topic",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -79,15 +37,33 @@
           "primaryKey": false,
           "notNull": true
         },
-        "options": {
-          "name": "options",
-          "type": "jsonb",
+        "option_a": {
+          "name": "option_a",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "correct_index": {
-          "name": "correct_index",
-          "type": "integer",
+        "option_b": {
+          "name": "option_b",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "option_c": {
+          "name": "option_c",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "option_d": {
+          "name": "option_d",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correct_answer": {
+          "name": "correct_answer",
+          "type": "varchar(1)",
           "primaryKey": false,
           "notNull": true
         },
@@ -95,7 +71,25 @@
           "name": "explanation",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "topic": {
+          "name": "topic",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "embedding_id": {
+          "name": "embedding_id",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -107,12 +101,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "generated_mcqs_request_id_mcq_generation_requests_id_fk": {
-          "name": "generated_mcqs_request_id_mcq_generation_requests_id_fk",
-          "tableFrom": "generated_mcqs",
-          "tableTo": "mcq_generation_requests",
+        "questions_subject_id_subjects_id_fk": {
+          "name": "questions_subject_id_subjects_id_fk",
+          "tableFrom": "questions",
+          "tableTo": "subjects",
           "columnsFrom": [
-            "request_id"
+            "subject_id"
           ],
           "columnsTo": [
             "id"
@@ -127,8 +121,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.mcq_attempt_results": {
-      "name": "mcq_attempt_results",
+    "public.subjects": {
+      "name": "subjects",
       "schema": "",
       "columns": {
         "id": {
@@ -138,7 +132,7 @@
           "notNull": true,
           "identity": {
             "type": "always",
-            "name": "mcq_attempt_results_id_seq",
+            "name": "subjects_id_seq",
             "schema": "public",
             "increment": "1",
             "startWith": "1",
@@ -148,179 +142,72 @@
             "cycle": false
           }
         },
-        "request_id": {
-          "name": "request_id",
-          "type": "integer",
+        "name": {
+          "name": "name",
+          "type": "varchar(150)",
           "primaryKey": false,
           "notNull": true
         },
-        "learner_name": {
-          "name": "learner_name",
-          "type": "varchar(120)",
+        "slug": {
+          "name": "slug",
+          "type": "varchar(180)",
           "primaryKey": false,
           "notNull": true
         },
-        "language": {
-          "name": "language",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subjects": {
-          "name": "subjects",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "question_count": {
-          "name": "question_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "score": {
-          "name": "score",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "wrong": {
-          "name": "wrong",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unanswered": {
-          "name": "unanswered",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accuracy_percent": {
-          "name": "accuracy_percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "avg_time_per_question": {
-          "name": "avg_time_per_question",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "submitted_at": {
-          "name": "submitted_at",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "mcq_attempt_results_request_id_mcq_generation_requests_id_fk": {
-          "name": "mcq_attempt_results_request_id_mcq_generation_requests_id_fk",
-          "tableFrom": "mcq_attempt_results",
-          "tableTo": "mcq_generation_requests",
-          "columnsFrom": [
-            "request_id"
+      "indexes": {
+        "subjects_slug_unique": {
+          "name": "subjects_slug_unique",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.mcq_generation_requests": {
-      "name": "mcq_generation_requests",
+    "public.system_settings": {
+      "name": "system_settings",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
+        "key": {
+          "name": "key",
+          "type": "varchar(100)",
           "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "mcq_generation_requests_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "learner_name": {
-          "name": "learner_name",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "language": {
-          "name": "language",
-          "type": "varchar(20)",
-          "primaryKey": false,
           "notNull": true
         },
-        "requested_subjects": {
-          "name": "requested_subjects",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_subject_count": {
-          "name": "requested_subject_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_question_count": {
-          "name": "requested_question_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "generated_question_count": {
-          "name": "generated_question_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "failure_reason": {
-          "name": "failure_reason",
+        "value": {
+          "name": "value",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "requested_at": {
-          "name": "requested_at",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},

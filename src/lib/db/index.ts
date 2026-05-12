@@ -1,20 +1,20 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
-import * as schema from "./schema";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
-function createDb() {
-    const url = process.env.DATABASE_URL;
-    if (!url) {
-        throw new Error("DATABASE_URL is not set");
-    }
-    return drizzle(neon(url), { schema });
-}
+type Database = ReturnType<typeof drizzle>;
 
-let instance: ReturnType<typeof createDb> | undefined;
+let database: Database | null = null;
 
 export function db() {
-    if (!instance) {
-        instance = createDb();
-    }
-    return instance;
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not set.");
+  }
+
+  if (!database) {
+    // Disable prepare as it is not supported for Transaction pool mode.
+    const client = postgres(process.env.DATABASE_URL, { prepare: false });
+    database = drizzle(client);
+  }
+
+  return database;
 }
