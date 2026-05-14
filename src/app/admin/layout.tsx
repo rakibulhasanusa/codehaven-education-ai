@@ -3,19 +3,22 @@ import LogoutButton from "@/components/auth/LogoutButton";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-8">
-      <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-10">
+      {/* ── Top bar ─────────────────────────────────────────────── */}
+      <header className="mb-8 flex items-center justify-between gap-4 border-b border-border/50 pb-6">
         <div>
-          <p className="premium-kicker">MCQ AI</p>
-          <h1 className="premium-title mt-1 text-3xl font-bold tracking-tight">Administration</h1>
+          <p className="premium-kicker mb-1">MCQ AI</p>
+          <h1 className="premium-title text-3xl font-bold tracking-tight">
+            Administration
+          </h1>
         </div>
-        <div className="sm:self-start">
-          <LogoutButton />
-        </div>
-      </div>
-      <div className="flex flex-col gap-6 lg:flex-row">
+        <LogoutButton />
+      </header>
+
+      {/* ── Body ────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <AdminSidebar />
-        <section className="flex-1 min-w-0">{children}</section>
+        <section className="min-w-0 flex-1">{children}</section>
       </div>
     </main>
   );
