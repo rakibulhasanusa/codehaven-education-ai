@@ -16,6 +16,7 @@ type ExamMeta = {
   endTime: string | null;
   durationMinutes: number;
   timingMode: string;
+  negativeMarking: number;
   subjectName: string;
   topic: string | null;
 };
@@ -45,6 +46,8 @@ export default function ExamAttemptPage() {
   const [marked, setMarked] = useState<Record<number, boolean>>({});
   const [timer, setTimer] = useState(0);
   const [started, setStarted] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [agreeRules, setAgreeRules] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -154,6 +157,14 @@ export default function ExamAttemptPage() {
   }
 
   const active = questions[idx];
+  const proverb = "Preparation builds confidence, and confidence builds success.";
+  const ruleItems = [
+    "Each correct answer adds 1 mark.",
+    `Each wrong answer deducts ${Number(exam?.negativeMarking ?? 0)} mark(s).`,
+    "Unanswered questions carry 0 mark change.",
+    "Copy, paste, and right-click actions are blocked during the exam.",
+    "The timer starts immediately after you press Start Exam.",
+  ];
 
   if (!started) {
     return (
@@ -192,13 +203,45 @@ export default function ExamAttemptPage() {
 
             {exam?.instructions ? <div className="rounded-lg border border-border/60 px-3 py-3 text-sm text-muted-foreground">{exam.instructions}</div> : null}
 
-            <div className="space-y-2">
-              <input className="w-full rounded-lg border border-border bg-background px-3 py-2" placeholder="Enter your name" value={name} onChange={(e) => setName(e.target.value)} />
-              <Button className="w-full" disabled={!canStart || !name.trim()} onClick={start}>
-                {canStart ? "Start Exam" : "Waiting for countdown..."}
-              </Button>
-              {!canStart ? <p className="text-center text-xs text-muted-foreground">You can join as soon as the countdown ends.</p> : null}
-            </div>
+            {!showRules ? (
+              <div className="space-y-2">
+                <input className="w-full rounded-lg border border-border bg-background px-3 py-2" placeholder="Enter your name" value={name} onChange={(e) => setName(e.target.value)} />
+                <Button className="w-full" disabled={!canStart || !name.trim()} onClick={() => setShowRules(true)}>
+                  {canStart ? "Continue to Rules" : "Waiting for countdown..."}
+                </Button>
+                {!canStart ? <p className="text-center text-xs text-muted-foreground">You can join as soon as the countdown ends.</p> : null}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Proverb Before Start</p>
+                  <p className="mt-2 text-base font-medium leading-7 text-amber-900">"{proverb}"</p>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="text-sm font-semibold">Quiz Rules</p>
+                  <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                    {ruleItems.map((rule) => (
+                      <p key={rule}>• {rule}</p>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-sm">
+                  <input type="checkbox" checked={agreeRules} onChange={(e) => setAgreeRules(e.target.checked)} />
+                  <span>I have read the rules and I am ready to begin.</span>
+                </label>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => setShowRules(false)}>
+                    Back
+                  </Button>
+                  <Button className="w-full sm:w-auto sm:ml-auto" disabled={!agreeRules || !canStart || !name.trim()} onClick={start}>
+                    Start Exam
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
