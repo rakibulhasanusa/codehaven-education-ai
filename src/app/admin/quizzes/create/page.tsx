@@ -4,11 +4,59 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
+// ── icons ─────────────────────────────────────────────────────────────────────
+import {
+  BookOpen,
+  CalendarClock,
+  ChevronRight,
+  CirclePlus,
+  Filter,
+  Hash,
+  LayoutList,
+  Layers,
+  PenLine,
+  Plus,
+  Search,
+  Sparkles,
+  Timer,
+  Trash2,
+} from "lucide-react";
+
+// ── types ─────────────────────────────────────────────────────────────────────
 type Subject = { id: number; name: string };
-type Question = { id: number; question: string; topic: string | null; difficulty: string | null };
-
+type Question = {
+  id: number;
+  question: string;
+  topic: string | null;
+  difficulty: string | null;
+};
 type ManualQuestion = {
   question: string;
   optionA: string;
@@ -20,6 +68,10 @@ type ManualQuestion = {
   topic: string;
   difficulty: string;
 };
+
+// Sentinels — Radix Select forbids value=""
+const ALL_SUBJECTS = "__all__";
+const NO_DIFFICULTY = "__none__";
 
 const blankManual: ManualQuestion = {
   question: "",
@@ -33,19 +85,52 @@ const blankManual: ManualQuestion = {
   difficulty: "",
 };
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+  badge,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-primary/8 shadow-sm">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <CardTitle className="text-base font-semibold">{title}</CardTitle>
+          <CardDescription className="mt-0.5 text-xs leading-relaxed">
+            {description}
+          </CardDescription>
+        </div>
+      </div>
+      {badge}
+    </div>
+  );
+}
+
+// ── component ─────────────────────────────────────────────────────────────────
 export default function CreateQuizPage() {
   const router = useRouter();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [manualQuestions, setManualQuestions] = useState<ManualQuestion[]>([blankManual]);
+  const [manualQuestions, setManualQuestions] = useState<ManualQuestion[]>([
+    blankManual,
+  ]);
   const [filters, setFilters] = useState({ q: "", topic: "", difficulty: "" });
   const [subjectFilters, setSubjectFilters] = useState<number[]>([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
     instructions: "",
-    subjectId: "",
+    subjectId: ALL_SUBJECTS, // sentinel — never ""
     topic: "",
     startTime: "",
     endTime: "",
@@ -65,7 +150,9 @@ export default function CreateQuizPage() {
   async function searchQuestions() {
     const qs = new URLSearchParams({
       ...filters,
-      ...(subjectFilters.length ? { subjectIds: subjectFilters.join(",") } : {}),
+      ...(subjectFilters.length
+        ? { subjectIds: subjectFilters.join(",") }
+        : {}),
     }).toString();
     const res = await fetch(`/api/admin/quizzes?${qs}`, { method: "PUT" });
     const json = await res.json();
@@ -73,133 +160,576 @@ export default function CreateQuizPage() {
   }
 
   async function createQuiz() {
+    // Strip sentinels before sending to API
+    const rawSubjectId = form.subjectId === ALL_SUBJECTS ? null : Number(form.subjectId);
+
     const res = await fetch("/api/admin/quizzes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, subjectId: Number(form.subjectId), selectedQuestionIds: selectedIds, manualQuestions }),
+      body: JSON.stringify({
+        ...form,
+        subjectId: rawSubjectId,
+        selectedQuestionIds: selectedIds,
+        manualQuestions,
+      }),
     });
     const json = await res.json();
     if (!res.ok) return alert(json.error || "Failed");
     router.push("/admin/quizzes");
   }
 
+  function updateManual<K extends keyof ManualQuestion>(
+    i: number,
+    key: K,
+    val: ManualQuestion[K]
+  ) {
+    setManualQuestions((p) =>
+      p.map((x, idx) => (idx === i ? { ...x, [key]: val } : x))
+    );
+  }
+
+  function removeManual(i: number) {
+    setManualQuestions((p) => p.filter((_, idx) => idx !== i));
+  }
+
+  const difficultyColors: Record<string, string> = {
+    easy: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    medium: "bg-amber-50 text-amber-700 border-amber-200",
+    hard: "bg-rose-50 text-rose-700 border-rose-200",
+  };
+
   return (
-    <div className="space-y-6">
-      <Card className="overflow-hidden border-border/60 bg-background/80 shadow-sm backdrop-blur">
-        <CardHeader className="bg-gradient-to-r from-background via-background to-muted/30">
-          <CardTitle className="text-2xl">Create Quiz</CardTitle>
-          <CardDescription>Build the exam, pick questions from one or more subjects, and control timing.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          <input className="rounded-lg border border-border bg-background px-3 py-2" placeholder="Title" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
-          <select className="rounded-lg border border-border bg-background px-3 py-2" value={form.subjectId} onChange={(e) => setForm((p) => ({ ...p, subjectId: e.target.value }))}>
-            <option value="">All subjects</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <textarea className="min-h-24 rounded-lg border border-border bg-background px-3 py-2 md:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
-          <textarea className="min-h-24 rounded-lg border border-border bg-background px-3 py-2 md:col-span-2" placeholder="Instructions" value={form.instructions} onChange={(e) => setForm((p) => ({ ...p, instructions: e.target.value }))} />
-          <input className="rounded-lg border border-border bg-background px-3 py-2" placeholder="Topic" value={form.topic} onChange={(e) => setForm((p) => ({ ...p, topic: e.target.value }))} />
-          <select className="rounded-lg border border-border bg-background px-3 py-2" value={form.timingMode} onChange={(e) => setForm((p) => ({ ...p, timingMode: e.target.value }))}>
-            <option value="fixed_end_time">Fixed ending time</option>
-            <option value="full_duration">Full duration from join</option>
-          </select>
-          <input type="datetime-local" className="rounded-lg border border-border bg-background px-3 py-2" value={form.startTime} onChange={(e) => setForm((p) => ({ ...p, startTime: e.target.value }))} />
-          <input type="datetime-local" className="rounded-lg border border-border bg-background px-3 py-2" value={form.endTime} onChange={(e) => setForm((p) => ({ ...p, endTime: e.target.value }))} />
-          <input type="number" className="rounded-lg border border-border bg-background px-3 py-2" value={form.durationMinutes} onChange={(e) => setForm((p) => ({ ...p, durationMinutes: Number(e.target.value) }))} />
-          <input type="number" step="0.25" className="rounded-lg border border-border bg-background px-3 py-2" value={form.negativeMarking} onChange={(e) => setForm((p) => ({ ...p, negativeMarking: Number(e.target.value) }))} />
-        </CardContent>
-      </Card>
+    <TooltipProvider>
+      <div className="mx-auto max-w-4xl space-y-5 pb-16">
+        {/* ── Page header ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Admin</span>
+          <ChevronRight className="h-3 w-3" />
+          <span>Quizzes</span>
+          <ChevronRight className="h-3 w-3" />
+          <span className="font-medium text-foreground">Create</span>
+        </div>
 
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>Select Existing Questions</CardTitle>
-              <CardDescription>Choose one subject, multiple subjects, or all subjects when filtering questions.</CardDescription>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Create New Exam</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Configure exam details, pick questions, and set timing rules.
+          </p>
+        </div>
+
+        {/* ── 1. Basic Info ────────────────────────────────────────── */}
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-4">
+            <SectionHeader
+              icon={BookOpen}
+              title="Exam Details"
+              description="Title, subject, description and instructions for test-takers."
+            />
+          </CardHeader>
+          <Separator />
+          <CardContent className="pt-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="title" className="text-xs font-medium">
+                  Title <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="title"
+                  placeholder="e.g. BCS Preliminary Mock — June 2025"
+                  value={form.title}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, title: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Subject</Label>
+                <Select
+                  value={form.subjectId}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, subjectId: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All subjects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* ✅ sentinel value — not "" */}
+                    <SelectItem value={ALL_SUBJECTS}>All subjects</SelectItem>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="topic" className="text-xs font-medium">
+                  Topic
+                </Label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="topic"
+                    className="pl-8"
+                    placeholder="e.g. Bangladesh Affairs"
+                    value={form.topic}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, topic: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Timing Mode</Label>
+                <Select
+                  value={form.timingMode}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, timingMode: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed_end_time">Fixed ending time</SelectItem>
+                    <SelectItem value="full_duration">Full duration from join</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="desc" className="text-xs font-medium">
+                  Description
+                </Label>
+                <Textarea
+                  id="desc"
+                  className="min-h-20 resize-none"
+                  placeholder="Short overview visible to students before starting the exam…"
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, description: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="instr" className="text-xs font-medium">
+                  Instructions
+                </Label>
+                <Textarea
+                  id="instr"
+                  className="min-h-20 resize-none"
+                  placeholder="Rules, guidelines, or any note for the exam session…"
+                  value={form.instructions}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, instructions: e.target.value }))
+                  }
+                />
+              </div>
             </div>
-            <Badge variant="secondary">{subjectFilters.length ? `${subjectFilters.length} selected` : "All subjects"}</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-4">
-            <input className="rounded-lg border border-border bg-background px-3 py-2" placeholder="Search" value={filters.q} onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))} />
-            <input className="rounded-lg border border-border bg-background px-3 py-2" placeholder="Topic" value={filters.topic} onChange={(e) => setFilters((p) => ({ ...p, topic: e.target.value }))} />
-            <input className="rounded-lg border border-border bg-background px-3 py-2" placeholder="Difficulty" value={filters.difficulty} onChange={(e) => setFilters((p) => ({ ...p, difficulty: e.target.value }))} />
-            <Button type="button" onClick={searchQuestions}>Filter</Button>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex flex-wrap gap-2">
+        {/* ── 2. Timing ────────────────────────────────────────────── */}
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-4">
+            <SectionHeader
+              icon={CalendarClock}
+              title="Timing & Scoring"
+              description="Set start / end windows, duration, and negative marking penalty."
+            />
+          </CardHeader>
+          <Separator />
+          <CardContent className="pt-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Start Time</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.startTime}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, startTime: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">End Time</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.endTime}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, endTime: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <Timer className="h-3 w-3" /> Duration (min)
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.durationMinutes}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      durationMinutes: Number(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  Negative Marking
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help rounded-full border border-border px-1.5 py-0 text-[10px] text-muted-foreground">
+                        ?
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Marks deducted per wrong answer (e.g. 0.25)
+                    </TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.25"
+                  min={0}
+                  value={form.negativeMarking}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      negativeMarking: Number(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── 3. Question bank ─────────────────────────────────────── */}
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-4">
+            <SectionHeader
+              icon={LayoutList}
+              title="Question Bank"
+              description="Search and select existing questions from one or more subjects."
+              badge={
+                <Badge variant="secondary" className="shrink-0 tabular-nums">
+                  {selectedIds.length} selected
+                </Badge>
+              }
+            />
+          </CardHeader>
+          <Separator />
+          <CardContent className="space-y-4 pt-5">
+            <div className="flex flex-wrap gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={subjectFilters.length === 0 ? "default" : "outline"}
+                className="h-7 rounded-full px-3 text-xs"
+                onClick={() => setSubjectFilters([])}
+              >
+                All
+              </Button>
+              {subjects.map((s) => {
+                const active = subjectFilters.includes(s.id);
+                return (
+                  <Button
+                    key={s.id}
+                    type="button"
+                    size="sm"
+                    variant={active ? "default" : "outline"}
+                    className="h-7 rounded-full px-3 text-xs"
+                    onClick={() =>
+                      setSubjectFilters((prev) =>
+                        active
+                          ? prev.filter((id) => id !== s.id)
+                          : [...prev, s.id]
+                      )
+                    }
+                  >
+                    {s.name}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-40 flex-1">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-8 text-sm"
+                  placeholder="Search questions…"
+                  value={filters.q}
+                  onChange={(e) =>
+                    setFilters((p) => ({ ...p, q: e.target.value }))
+                  }
+                  onKeyDown={(e) => e.key === "Enter" && searchQuestions()}
+                />
+              </div>
+              <Input
+                className="w-36 text-sm"
+                placeholder="Topic"
+                value={filters.topic}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, topic: e.target.value }))
+                }
+              />
+              <Input
+                className="w-36 text-sm"
+                placeholder="Difficulty"
+                value={filters.difficulty}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, difficulty: e.target.value }))
+                }
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                onClick={searchQuestions}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                Filter
+              </Button>
+            </div>
+
+            <ScrollArea className="h-72 rounded-xl border border-border/60">
+              {questions.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 py-12 text-center">
+                  <Layers className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">
+                    No questions found. Try adjusting your filters.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 p-3">
+                  {questions.map((q) => {
+                    const checked = selectedIds.includes(q.id);
+                    const diffKey = q.difficulty?.toLowerCase() ?? "";
+                    return (
+                      <label
+                        key={q.id}
+                        className={`flex cursor-pointer gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                          checked
+                            ? "border-primary/40 bg-primary/5"
+                            : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(c) =>
+                            setSelectedIds((p) =>
+                              c ? [...p, q.id] : p.filter((x) => x !== q.id)
+                            )
+                          }
+                          className="mt-0.5 shrink-0"
+                        />
+                        <span className="flex-1 leading-snug">{q.question}</span>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {q.topic && (
+                            <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                              {q.topic}
+                            </Badge>
+                          )}
+                          {q.difficulty && (
+                            <span
+                              className={`rounded border px-1.5 py-0 text-[10px] font-medium ${
+                                difficultyColors[diffKey] ??
+                                "bg-muted/60 text-muted-foreground border-border"
+                              }`}
+                            >
+                              {q.difficulty}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* ── 4. Manual Questions ───────────────────────────────────── */}
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-4">
+            <SectionHeader
+              icon={PenLine}
+              title="Manual Questions"
+              description="Write custom questions inline — ideal when the question bank doesn't cover your topic."
+              badge={
+                <Badge variant="outline" className="shrink-0 tabular-nums">
+                  {manualQuestions.length} row
+                  {manualQuestions.length !== 1 ? "s" : ""}
+                </Badge>
+              }
+            />
+          </CardHeader>
+          <Separator />
+          <CardContent className="space-y-3 pt-5">
+            {manualQuestions.map((m, i) => (
+              <div
+                key={i}
+                className="relative rounded-xl border border-border/60 bg-muted/20 p-4"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  {manualQuestions.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeManual(i)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid gap-2.5 sm:grid-cols-4">
+                  <div className="space-y-1 sm:col-span-4">
+                    <Label className="text-xs text-muted-foreground">Question</Label>
+                    <Textarea
+                      className="min-h-16 resize-none text-sm"
+                      placeholder="Type your question…"
+                      value={m.question}
+                      onChange={(e) => updateManual(i, "question", e.target.value)}
+                    />
+                  </div>
+
+                  {(["A", "B", "C", "D"] as const).map((opt) => {
+                    const key = `option${opt}` as keyof ManualQuestion;
+                    return (
+                      <div key={opt} className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">
+                          Option {opt}
+                        </Label>
+                        <Input
+                          className="text-sm"
+                          placeholder={`Option ${opt}`}
+                          value={m[key] as string}
+                          onChange={(e) => updateManual(i, key, e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Correct</Label>
+                    <Select
+                      value={m.correctAnswer}
+                      onValueChange={(v) => updateManual(i, "correctAnswer", v)}
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["A", "B", "C", "D"].map((o) => (
+                          <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Topic</Label>
+                    <Input
+                      className="text-sm"
+                      placeholder="Topic"
+                      value={m.topic}
+                      onChange={(e) => updateManual(i, "topic", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Difficulty</Label>
+                    <Select
+                      // ✅ sentinel when difficulty is "" — never pass "" to Radix
+                      value={m.difficulty || NO_DIFFICULTY}
+                      onValueChange={(v) =>
+                        updateManual(i, "difficulty", v === NO_DIFFICULTY ? "" : v)
+                      }
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_DIFFICULTY}>None</SelectItem>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-4">
+                    <Label className="text-xs text-muted-foreground">Explanation</Label>
+                    <Textarea
+                      className="min-h-14 resize-none text-sm"
+                      placeholder="Explain the correct answer (optional)…"
+                      value={m.explanation}
+                      onChange={(e) => updateManual(i, "explanation", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
             <Button
               type="button"
-              variant={subjectFilters.length === 0 ? "default" : "outline"}
-              onClick={() => setSubjectFilters([])}
+              variant="outline"
+              className="w-full gap-2 border-dashed"
+              onClick={() => setManualQuestions((p) => [...p, blankManual])}
             >
-              All subjects
+              <Plus className="h-4 w-4" />
+              Add another question
             </Button>
-            {subjects.map((subject) => {
-              const active = subjectFilters.includes(subject.id);
-              return (
-                <Button
-                  key={subject.id}
-                  type="button"
-                  variant={active ? "default" : "outline"}
-                  onClick={() => setSubjectFilters((prev) => (active ? prev.filter((id) => id !== subject.id) : [...prev, subject.id]))}
-                >
-                  {subject.name}
-                </Button>
-              );
-            })}
+          </CardContent>
+        </Card>
+
+        {/* ── 5. Summary & Submit ───────────────────────────────────── */}
+        <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-5 py-4 shadow-sm">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <CirclePlus className="h-4 w-4 text-primary" />
+              <strong className="tabular-nums text-foreground">
+                {selectedIds.length}
+              </strong>{" "}
+              from bank
+            </span>
+            <Separator orientation="vertical" className="h-4" />
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <strong className="tabular-nums text-foreground">
+                {manualQuestions.filter((m) => m.question.trim()).length}
+              </strong>{" "}
+              manual
+            </span>
           </div>
 
-          <div className="max-h-72 overflow-auto rounded-xl border border-border/60">
-            {questions.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">No data available.</div>
-            ) : (
-              <div className="space-y-2 p-3">
-                {questions.map((q) => (
-                  <label key={q.id} className="flex gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(q.id)}
-                      onChange={(e) => setSelectedIds((p) => (e.target.checked ? [...p, q.id] : p.filter((x) => x !== q.id)))}
-                    />
-                    <span>{q.question}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader>
-          <CardTitle>Manual Questions</CardTitle>
-          <CardDescription>Add questions manually when you do not want to pull from the question bank.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">{manualQuestions.length} row(s)</span>
-            <Button type="button" variant="outline" onClick={() => setManualQuestions((p) => [...p, blankManual])}>Add row</Button>
-          </div>
-          {manualQuestions.map((m, i) => (
-            <div key={i} className="grid gap-2 rounded-xl border border-border/60 p-3 md:grid-cols-4">
-              <input className="rounded border border-border bg-background px-2 py-1 md:col-span-4" placeholder="Question" value={m.question} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, question: e.target.value } : x)))} />
-              <input className="rounded border border-border bg-background px-2 py-1" placeholder="Option A" value={m.optionA} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, optionA: e.target.value } : x)))} />
-              <input className="rounded border border-border bg-background px-2 py-1" placeholder="Option B" value={m.optionB} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, optionB: e.target.value } : x)))} />
-              <input className="rounded border border-border bg-background px-2 py-1" placeholder="Option C" value={m.optionC} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, optionC: e.target.value } : x)))} />
-              <input className="rounded border border-border bg-background px-2 py-1" placeholder="Option D" value={m.optionD} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, optionD: e.target.value } : x)))} />
-              <select className="rounded border border-border bg-background px-2 py-1" value={m.correctAnswer} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, correctAnswer: e.target.value } : x)))}><option>A</option><option>B</option><option>C</option><option>D</option></select>
-              <input className="rounded border border-border bg-background px-2 py-1 md:col-span-2" placeholder="Explanation" value={m.explanation} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, explanation: e.target.value } : x)))} />
-              <input className="rounded border border-border bg-background px-2 py-1" placeholder="Topic" value={m.topic} onChange={(e) => setManualQuestions((p) => p.map((x, idx) => (idx === i ? { ...x, topic: e.target.value } : x)))} />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Button className="w-full md:w-auto" onClick={createQuiz}>Create Exam</Button>
-    </div>
+          <Button size="default" className="gap-2 font-semibold" onClick={createQuiz}>
+            Create Exam
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </TooltipProvider>
   );
 }
