@@ -11,6 +11,9 @@ export type Difficulty = "Basic" | "Medium" | "Hard";
 
 export type MCQQuestion = {
   id: string;
+  dbQuestionId?: number;
+  examSessionId?: string;
+  generatedAt?: string;
   subject: Subject;
   language: QuestionLanguage;
   difficulty: Difficulty;

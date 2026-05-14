@@ -183,11 +183,48 @@
 .bn-readable {
   letter-spacing: 0;
   font-feature-settings: "kern" 1, "liga" 1;
+  font-family: var(--font-bn-sans), "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", sans-serif;
+  word-spacing: 0.02em;
+}
+
+.bn-readable .premium-title,
+.bn-readable h1,
+.bn-readable h2,
+.bn-readable h3 {
+  font-family: var(--font-bn-sans), "Hind Siliguri", "Noto Sans Bengali", "SolaimanLipi", sans-serif;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.bn-readable p,
+.bn-readable li,
+.bn-readable label,
+.bn-readable button,
+.bn-readable input,
+.bn-readable textarea {
+  line-height: 1.72;
+}
+
+.bn-readable input,
+.bn-readable textarea,
+.bn-readable button {
+  font-size: 0.98rem;
 }
 
 @media (max-width: 640px) {
   .bn-readable {
-    line-height: 1.6;
+    line-height: 1.72;
+  }
+
+  .bn-readable .premium-title {
+    line-height: 1.3;
+  }
+
+  .bn-readable button,
+  .bn-readable input,
+  .bn-readable select,
+  .bn-readable textarea {
+    min-height: 2.8rem;
   }
 }
 

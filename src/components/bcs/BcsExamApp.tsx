@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { buildSmartReview, calculateScore, calculateSubjectStats } from "@/lib/mcq/analytics";
-import { BCS_SUBJECTS } from "@/lib/mcq/constants";
 import { cn } from "@/lib/utils";
 import type {
   AttemptRecord,
@@ -12,14 +11,13 @@ import type {
   Subject,
 } from "@/lib/mcq/types";
 
-const DEFAULT_SUBJECTS: Subject[] = BCS_SUBJECTS.map((subject) => subject.value);
 const LANGUAGES: QuestionLanguage[] = ["English", "Bengali"];
 const DEVICE_ID_STORAGE_KEY = "mcq_device_id_v1";
 
 type ExamPhase = "setup" | "exam" | "result";
 
 type GenerateResponse = {
-  requestId: number;
+  requestId: string;
   questions: MCQQuestion[];
 };
 
@@ -251,12 +249,10 @@ function exportQuestionsOnlyToPrintWindow(input: {
 }
 
 export default function BcsExamApp() {
-  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>(DEFAULT_SUBJECTS);
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   const [phase, setPhase] = useState<ExamPhase>("setup");
   const [learnerName, setLearnerName] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([
-    DEFAULT_SUBJECTS[0],
-  ]);
+  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
   const [questionLanguage, setQuestionLanguage] = useState<QuestionLanguage>("Bengali");
   const [referenceYearFrom, setReferenceYearFrom] = useState("");
   const [referenceYearTo, setReferenceYearTo] = useState("");
@@ -267,7 +263,14 @@ export default function BcsExamApp() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [examQuestions, setExamQuestions] = useState<MCQQuestion[]>([]);
-  const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [aiReview, setAiReview] = useState<{
+    summary: string;
+    strengths: string[];
+    improvements: string[];
+    weakTopics: string[];
+    estimatedPreparationLevel: string;
+  } | null>(null);
   const [answers, setAnswers] = useState<Array<number | null>>([]);
   const [timeSpent, setTimeSpent] = useState<number[]>([]);
   const [examTimer, setExamTimer] = useState(0);
@@ -302,8 +305,20 @@ export default function BcsExamApp() {
         const json = (await response.json()) as { subjects?: string[] };
         if (!response.ok || cancelled) return;
 
-        const subjects = Array.isArray(json.subjects) ? json.subjects.filter(Boolean) : [];
-        if (!subjects.length) return;
+        const subjects = Array.isArray(json.subjects)
+          ? json.subjects
+            .map((s) => {
+              if (typeof s === "string") return s;
+              if (s && typeof s === "object" && "name" in s) return String((s as { name: unknown }).name || "");
+              return "";
+            })
+            .filter(Boolean)
+          : [];
+        if (!subjects.length) {
+          setAvailableSubjects([]);
+          setSelectedSubjects([]);
+          return;
+        }
 
         setAvailableSubjects(subjects);
         setSelectedSubjects((prev) => {
@@ -312,7 +327,8 @@ export default function BcsExamApp() {
         });
       } catch {
         if (!cancelled) {
-          setAvailableSubjects(DEFAULT_SUBJECTS);
+          setAvailableSubjects([]);
+          setSelectedSubjects([]);
         }
       }
     })();
@@ -374,7 +390,10 @@ export default function BcsExamApp() {
     }
     return history[0].accuracyPercent - history[1].accuracyPercent;
   }, [history]);
-  const questionCount = selectedSubjects.length * 10;
+  const isBn = questionLanguage === "Bengali";
+  const questionCount = Math.max(1, selectedSubjects.length) * 10;
+  const perSubjectQuestionCount = 10;
+  const uiPlannedQuestionCount = Math.max(1, selectedSubjects.length) * perSubjectQuestionCount;
 
   function toggleSubject(subject: Subject) {
     setSelectedSubjects((prev) => {
@@ -389,6 +408,10 @@ export default function BcsExamApp() {
 
   async function startExam() {
     setSetupError(null);
+    if (selectedSubjects.length === 0) {
+      setSetupError(isBn ? "কোনো বিষয় পাওয়া যায়নি। আগে admin থেকে বিষয় যোগ করুন।" : "No subjects available. Please add subjects from admin first.");
+      return;
+    }
     setIsGenerating(true);
     try {
       const res = await fetch("/api/bcs/generate-mcqs", {
@@ -408,15 +431,15 @@ export default function BcsExamApp() {
       });
       const payload = (await res.json()) as GenerateResponse & { error?: string };
       if (!res.ok) {
-        throw new Error(payload.error || "Failed to generate exam questions.");
+        throw new Error(payload.error || (isBn ? "পরীক্ষার প্রশ্ন তৈরি করা যায়নি।" : "Failed to generate exam questions."));
       }
 
       const generated = payload.questions ?? [];
       if (!generated.length) {
-        throw new Error("No questions received from AI.");
+        throw new Error(isBn ? "AI থেকে কোনো প্রশ্ন পাওয়া যায়নি।" : "No questions received from AI.");
       }
       if (!payload.requestId) {
-        throw new Error("Generation request id not returned from backend.");
+        throw new Error(isBn ? "ব্যাকএন্ড থেকে request id পাওয়া যায়নি।" : "Generation request id not returned from backend.");
       }
 
       setActiveRequestId(payload.requestId);
@@ -427,7 +450,7 @@ export default function BcsExamApp() {
       setElapsedExamSeconds(0);
       setPhase("exam");
     } catch (error) {
-      setSetupError(error instanceof Error ? error.message : "Unable to generate questions.");
+      setSetupError(error instanceof Error ? error.message : (isBn ? "প্রশ্ন তৈরি করা যায়নি।" : "Unable to generate questions."));
     } finally {
       setIsGenerating(false);
     }
@@ -449,7 +472,7 @@ export default function BcsExamApp() {
     setIsSavingAttempt(true);
     try {
       if (!activeRequestId) {
-        throw new Error("Missing request id. Please regenerate the exam.");
+        throw new Error(isBn ? "Request id পাওয়া যায়নি। আবার পরীক্ষা তৈরি করুন।" : "Missing request id. Please regenerate the exam.");
       }
 
       const res = await fetch("/api/attempts", {
@@ -460,6 +483,8 @@ export default function BcsExamApp() {
           learnerName: learnerName.trim() || "Learner",
           language: questionLanguage,
           subjects: selectedSubjects,
+          answers,
+          timeSpent,
           questionCount: examQuestions.length,
           score: score.correct,
           wrong: score.wrong,
@@ -469,10 +494,11 @@ export default function BcsExamApp() {
         }),
       });
 
-      const payload = (await res.json()) as { error?: string };
+      const payload = (await res.json()) as { error?: string; review?: typeof aiReview };
       if (!res.ok) {
-        throw new Error(payload.error || "Failed to save exam attempt.");
+        throw new Error(payload.error || (isBn ? "পরীক্ষার ফলাফল সেভ করা যায়নি।" : "Failed to save exam attempt."));
       }
+      if (payload.review) setAiReview(payload.review);
 
       await loadHistory();
       const evenSplit = examQuestions.length
@@ -481,7 +507,7 @@ export default function BcsExamApp() {
       setTimeSpent(Array(examQuestions.length).fill(evenSplit));
       setPhase("result");
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Failed to save exam attempt.");
+      setSaveError(error instanceof Error ? error.message : (isBn ? "পরীক্ষার ফলাফল সেভ করা যায়নি।" : "Failed to save exam attempt."));
     } finally {
       setIsSavingAttempt(false);
     }
@@ -497,6 +523,7 @@ export default function BcsExamApp() {
     setElapsedExamSeconds(0);
     setSetupError(null);
     setSaveError(null);
+    setAiReview(null);
   }
 
   const answeredCount = answers.filter((a) => a !== null).length;
@@ -541,21 +568,21 @@ export default function BcsExamApp() {
                 <div>
                   <p className="text-sm font-medium leading-snug">
                     {isGenerating
-                      ? questionLanguage === "Bengali"
+                      ? isBn
                         ? "MCQ তৈরি হচ্ছে, একটু অপেক্ষা করুন..."
                         : "Generating MCQs, please wait..."
-                      : questionLanguage === "Bengali"
+                      : isBn
                         ? "সিলেবাস PDF বিশ্লেষণ চলছে..."
                         : "Analyzing syllabus PDF..."}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
                     {isGenerating
-                      ? questionLanguage === "Bengali"
-                        ? "Generating MCQs, please wait..."
-                        : "MCQ তৈরি হচ্ছে, একটু অপেক্ষা করুন..."
-                      : questionLanguage === "Bengali"
-                        ? "Analyzing syllabus PDF..."
-                        : "সিলেবাস PDF বিশ্লেষণ চলছে..."}
+                      ? isBn
+                        ? "বাংলা প্রশ্ন, উত্তর ও ব্যাখ্যা তৈরি করা হচ্ছে।"
+                        : "Generating questions, options, and explanations."
+                      : isBn
+                        ? "সোর্স কনটেক্সট যাচাই করা হচ্ছে।"
+                        : "Validating source context."}
                   </p>
                 </div>
               </div>
@@ -599,7 +626,7 @@ export default function BcsExamApp() {
               <div className="mt-4 flex items-center gap-2 border-t pt-3">
                 <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-primary" />
                 <p className="text-xs text-muted-foreground">
-                  {questionLanguage === "Bengali"
+                  {isBn
                     ? "কাজ শেষ না হওয়া পর্যন্ত এই পর্দায় থাকুন।"
                     : "Stay on this screen until the work finishes."}
                 </p>
@@ -611,10 +638,12 @@ export default function BcsExamApp() {
       {/* ────────────────────────────────────────────────────────────────── */}
 
       <header className="premium-panel rounded-2xl px-5 py-5 md:px-6 md:py-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Premium Practice Suite</p>
-        <h1 className="premium-title mt-1 text-3xl font-bold tracking-tight md:text-4xl">MCQ Smart Exam Platform</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{isBn ? "প্রিমিয়াম প্র্যাকটিস স্যুট" : "Premium Practice Suite"}</p>
+        <h1 className="premium-title mt-1 text-3xl font-bold tracking-tight md:text-4xl">{isBn ? "MCQ স্মার্ট এক্সাম প্ল্যাটফর্ম" : "MCQ Smart Exam Platform"}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          AI-generated exams, timed answers, smart feedback, and progress analytics.
+          {isBn
+            ? "AI-জেনারেটেড পরীক্ষা, নির্ধারিত সময়, স্মার্ট ফিডব্যাক এবং প্রগ্রেস অ্যানালিটিক্স।"
+            : "AI-generated exams, timed answers, smart feedback, and progress analytics."}
         </p>
       </header>
 
@@ -622,21 +651,21 @@ export default function BcsExamApp() {
         <main className="grid gap-6 py-6 lg:grid-cols-[2fr_1fr]">
           <section className="premium-panel space-y-6 rounded-2xl p-4 md:p-5">
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold">Start A New Exam</h2>
+              <h2 className="text-lg font-semibold">{isBn ? "নতুন পরীক্ষা শুরু করুন" : "Start A New Exam"}</h2>
               <label htmlFor="learner" className="block text-sm font-medium">
-                Learner Name
+                {isBn ? "পরীক্ষার্থীর নাম" : "Learner Name"}
               </label>
               <input
                 id="learner"
                 value={learnerName}
                 onChange={(e) => setLearnerName(e.target.value)}
-                placeholder="Enter your name"
+                placeholder={isBn ? "আপনার নাম লিখুন" : "Enter your name"}
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Choose Subjects</h3>
+                <h3 className="text-sm font-semibold">{isBn ? "বিষয় নির্বাচন করুন" : "Choose Subjects"}</h3>
               <div className="grid grid-cols-2 gap-2">
                 {availableSubjects.map((subject) => {
                   const active = selectedSubjects.includes(subject);
@@ -658,18 +687,20 @@ export default function BcsExamApp() {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Question Count (Auto)</h3>
+              <h3 className="text-sm font-semibold">{isBn ? "প্রশ্ন সংখ্যা (অটো)" : "Question Count (Auto)"}</h3>
               <p className="rounded-md border px-3 py-2 text-sm">
-                {selectedSubjects.length} subjects x 10 MCQs ={" "}
+                {isBn ? "বর্তমান পরীক্ষার মোট প্রশ্ন:" : "Current total exam questions:"}{" "}
                 <span className="font-semibold">{questionCount}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                Fixed rule: 10 MCQs per selected subject. Total exam time: 1 minute per question combined.
+                {isBn
+                  ? `ফ্রন্টএন্ড নিয়ম: প্রতি বিষয় ${perSubjectQuestionCount}টি (মোট পরিকল্পিত ${uiPlannedQuestionCount})।`
+                  : `Frontend rule: ${perSubjectQuestionCount} per subject (planned total ${uiPlannedQuestionCount}).`}
               </p>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Question Language</h3>
+              <h3 className="text-sm font-semibold">{isBn ? "প্রশ্নের ভাষা" : "Question Language"}</h3>
               <div className="flex gap-2">
                 {LANGUAGES.map((lang) => (
                   <button
@@ -686,36 +717,13 @@ export default function BcsExamApp() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Bengali mode generates full Bangla questions and explanations.
+                {isBn ? "বাংলা মোডে UI-ও বাংলায় দেখানো হবে।" : "Bengali mode renders the UI in Bengali."}
               </p>
             </div>
-
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Reference Year Filter (Optional)</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={referenceYearFrom}
-                  onChange={(e) => setReferenceYearFrom(e.target.value)}
-                  placeholder="From year (e.g. 2018)"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <input
-                  value={referenceYearTo}
-                  onChange={(e) => setReferenceYearTo(e.target.value)}
-                  placeholder="To year (e.g. 2024)"
-                  inputMode="numeric"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                AI will use the selected subjects and this year range as generation context; generated questions are saved to SQL only.
-              </p>
-            </div>
-
+            
             {setupError && <p className="text-sm text-destructive">{setupError}</p>}
-            <Button size="lg" onClick={startExam} disabled={isGenerating}>
-              {isGenerating ? "Generating With AI..." : "Start Exam"}
+            <Button size="lg" onClick={startExam} disabled={isGenerating || selectedSubjects.length === 0}>
+              {isGenerating ? (isBn ? "AI দিয়ে প্রশ্ন তৈরি হচ্ছে..." : "Generating With AI...") : (isBn ? "পরীক্ষা শুরু করুন" : "Start Exam")}
             </Button>
           </section>
 
@@ -773,7 +781,7 @@ export default function BcsExamApp() {
           <section className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
             <div className="sticky top-3 z-20 flex items-center justify-between gap-3 rounded-xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
               <p className="text-sm font-medium">
-                All Questions ({examQuestions.length})
+                {isBn ? `সব প্রশ্ন (${examQuestions.length})` : `All Questions (${examQuestions.length})`}
               </p>
               <p
                 className={`rounded-md border px-3 py-1 text-sm font-semibold ${examTimer <= 60 ? "border-destructive text-destructive" : ""
@@ -783,7 +791,9 @@ export default function BcsExamApp() {
               </p>
             </div>
             <p className="text-sm text-muted-foreground">
-              One combined timer is running for the full exam. Answer from the full list below.
+              {isBn
+                ? "পুরো পরীক্ষার জন্য একটি কমন টাইমার চলছে। নিচের তালিকা থেকে উত্তর দিন।"
+                : "One combined timer is running for the full exam. Answer from the full list below."}
             </p>
             <div className="space-y-4">
               {examQuestions.map((question, qIdx) => (
@@ -792,9 +802,9 @@ export default function BcsExamApp() {
                     {qIdx + 1}. {question.question}
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Subject: {question.subject} | Topic: {question.topic} | Language: {question.language}
-                    {" | "}Difficulty: {question.difficulty}
-                    {question.syllabusPart ? ` | Part: ${question.syllabusPart}` : ""}
+                    {isBn ? "বিষয়" : "Subject"}: {question.subject} | {isBn ? "টপিক" : "Topic"}: {question.topic} | {isBn ? "ভাষা" : "Language"}: {question.language}
+                    {" | "}{isBn ? "কঠিনতা" : "Difficulty"}: {question.difficulty}
+                    {question.syllabusPart ? ` | ${isBn ? "অংশ" : "Part"}: ${question.syllabusPart}` : ""}
                   </p>
                   <div className="mt-3 grid gap-2">
                     {question.options.map((option, oIdx) => {
@@ -821,40 +831,40 @@ export default function BcsExamApp() {
 
             <div className="flex gap-2">
               <Button onClick={submitExam} disabled={isSavingAttempt}>
-                {isSavingAttempt ? "Saving..." : "Submit Exam"}
+                {isSavingAttempt ? (isBn ? "সেভ হচ্ছে..." : "Saving...") : (isBn ? "পরীক্ষা জমা দিন" : "Submit Exam")}
               </Button>
             </div>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             {examTimer === 0 && (
               <p className="text-sm text-destructive">
-                Total exam time is over. Please submit now.
+                {isBn ? "পরীক্ষার সময় শেষ। এখনই জমা দিন।" : "Total exam time is over. Please submit now."}
               </p>
             )}
           </section>
           <aside className="premium-panel sticky top-3 h-fit space-y-4 rounded-2xl p-4 md:p-5">
             <div>
-              <h3 className="text-sm font-semibold">Exam Status</h3>
+              <h3 className="text-sm font-semibold">{isBn ? "পরীক্ষার অবস্থা" : "Exam Status"}</h3>
               <p className="text-sm text-muted-foreground">
-                Answered {answeredCount}/{examQuestions.length}
+                {isBn ? "উত্তর দেওয়া হয়েছে" : "Answered"} {answeredCount}/{examQuestions.length}
               </p>
-              <p className="text-sm text-muted-foreground">Time Left: {formatClock(examTimer)}</p>
+              <p className="text-sm text-muted-foreground">{isBn ? "বাকি সময়" : "Time Left"}: {formatClock(examTimer)}</p>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div className="rounded-lg border bg-background/70 p-2">
-                <p className="text-muted-foreground">Answered</p>
+                <p className="text-muted-foreground">{isBn ? "উত্তর দেওয়া" : "Answered"}</p>
                 <p className="font-semibold">{answeredCount}</p>
               </div>
               <div className="rounded-lg border bg-background/70 p-2">
-                <p className="text-muted-foreground">Left</p>
+                <p className="text-muted-foreground">{isBn ? "বাকি" : "Left"}</p>
                 <p className="font-semibold">{score.unanswered}</p>
               </div>
               <div className="rounded-lg border bg-background/70 p-2">
-                <p className="text-muted-foreground">Total</p>
+                <p className="text-muted-foreground">{isBn ? "মোট" : "Total"}</p>
                 <p className="font-semibold">{examQuestions.length}</p>
               </div>
             </div>
             <Button onClick={submitExam} disabled={isSavingAttempt} className="w-full">
-              {isSavingAttempt ? "Saving..." : "Submit Exam"}
+              {isSavingAttempt ? (isBn ? "সেভ হচ্ছে..." : "Saving...") : (isBn ? "পরীক্ষা জমা দিন" : "Submit Exam")}
             </Button>
           </aside>
         </main>
@@ -864,25 +874,25 @@ export default function BcsExamApp() {
         <main className="space-y-6 py-6">
           <section className="premium-panel grid gap-4 rounded-2xl p-4 md:grid-cols-4 md:p-5">
             <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">Score</p>
+              <p className="text-sm text-muted-foreground">{isBn ? "স্কোর" : "Score"}</p>
               <p className="text-2xl font-semibold">
                 {score.correct}/{examQuestions.length}
               </p>
             </div>
             <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">Accuracy</p>
+              <p className="text-sm text-muted-foreground">{isBn ? "সঠিকতার হার" : "Accuracy"}</p>
               <p className="text-2xl font-semibold">{score.accuracyPercent}%</p>
             </div>
             <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">Wrong</p>
+              <p className="text-sm text-muted-foreground">{isBn ? "ভুল" : "Wrong"}</p>
               <p className="text-2xl font-semibold">{score.wrong}</p>
             </div>
             <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">Avg Time / Q</p>
+              <p className="text-sm text-muted-foreground">{isBn ? "প্রতি প্রশ্নে গড় সময়" : "Avg Time / Q"}</p>
               <p className="text-2xl font-semibold">{avgTimePerQuestion}s</p>
             </div>
             <div className="rounded-xl border bg-background/70 p-3">
-              <p className="text-sm text-muted-foreground">Answered</p>
+              <p className="text-sm text-muted-foreground">{isBn ? "উত্তর দেওয়া" : "Answered"}</p>
               <p className="text-2xl font-semibold">
                 {answeredCount}/{examQuestions.length}
               </p>
@@ -891,12 +901,12 @@ export default function BcsExamApp() {
 
           <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
             <div className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
-              <h2 className="text-lg font-semibold">AI Review</h2>
-              <p className="text-sm">{smartReview.summary}</p>
+              <h2 className="text-lg font-semibold">{isBn ? "AI রিভিউ" : "AI Review"}</h2>
+              <p className="text-sm">{aiReview?.summary ?? smartReview.summary}</p>
 
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Strengths</h3>
-                {smartReview.strengths.map((line) => (
+                <h3 className="text-sm font-semibold">{isBn ? "শক্তির দিক" : "Strengths"}</h3>
+                {(aiReview?.strengths ?? smartReview.strengths).map((line) => (
                   <p key={line} className="text-sm text-muted-foreground">
                     - {line}
                   </p>
@@ -904,8 +914,8 @@ export default function BcsExamApp() {
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">What To Improve</h3>
-                {smartReview.improvements.map((line) => (
+                <h3 className="text-sm font-semibold">{isBn ? "যা উন্নত করা দরকার" : "What To Improve"}</h3>
+                {(aiReview?.improvements ?? smartReview.improvements).map((line) => (
                   <p key={line} className="text-sm text-muted-foreground">
                     - {line}
                   </p>
@@ -914,10 +924,10 @@ export default function BcsExamApp() {
             </div>
 
             <div className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
-              <h2 className="text-lg font-semibold">Improvement Graph</h2>
+              <h2 className="text-lg font-semibold">{isBn ? "উন্নতির গ্রাফ" : "Improvement Graph"}</h2>
               {history.length <= 1 && (
                 <p className="text-sm text-muted-foreground">
-                  Take at least 2 exams to see trend movement.
+                  {isBn ? "ট্রেন্ড দেখতে অন্তত ২টি পরীক্ষা দিন।" : "Take at least 2 exams to see trend movement."}
                 </p>
               )}
               {history.length > 1 && (
@@ -957,7 +967,7 @@ export default function BcsExamApp() {
                   <div key={subject} className="rounded-md border p-2">
                     <p className="font-medium">{subject}</p>
                     <p className="text-muted-foreground">
-                      {subjectStats[subject]?.accuracy ?? 0}% correct
+                      {isBn ? `${subjectStats[subject]?.accuracy ?? 0}% সঠিক` : `${subjectStats[subject]?.accuracy ?? 0}% correct`}
                     </p>
                   </div>
                 ))}
@@ -967,7 +977,7 @@ export default function BcsExamApp() {
 
           <section className="premium-panel space-y-3 rounded-2xl p-4 md:p-5">
             <div className="flex flex-wrap gap-2">
-              <Button onClick={resetToSetup}>Take Another Exam</Button>
+              <Button onClick={resetToSetup}>{isBn ? "আরেকটি পরীক্ষা দিন" : "Take Another Exam"}</Button>
               <Button
                 variant="outline"
                 onClick={() =>
@@ -979,13 +989,13 @@ export default function BcsExamApp() {
                   })
                 }
               >
-                Export Question Paper (PDF)
+                {isBn ? "প্রশ্নপত্র এক্সপোর্ট (PDF)" : "Export Question Paper (PDF)"}
               </Button>
             </div>
           </section>
 
           <section className="premium-panel space-y-3 rounded-2xl p-4 md:p-5">
-            <h2 className="text-lg font-semibold">Detailed Answer Explanation</h2>
+            <h2 className="text-lg font-semibold">{isBn ? "বিস্তারিত উত্তর ব্যাখ্যা" : "Detailed Answer Explanation"}</h2>
             {examQuestions.map((q, idx) => {
               const answerIndex = answers[idx];
               const isCorrect = answerIndex === q.correctIndex;
@@ -995,20 +1005,20 @@ export default function BcsExamApp() {
                     Q{idx + 1}. {q.question}
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Your answer:{" "}
-                    {answerIndex === null ? "Not answered" : q.options[answerIndex]}
+                    {isBn ? "আপনার উত্তর" : "Your answer"}:{" "}
+                    {answerIndex === null ? (isBn ? "উত্তর দেওয়া হয়নি" : "Not answered") : q.options[answerIndex]}
                   </p>
                   <p
                     className={`mt-1 text-sm font-medium ${isCorrect ? "text-green-600" : "text-red-600"}`}
                   >
-                    {isCorrect ? "Correct" : "Incorrect"} | Correct answer:{" "}
+                    {isCorrect ? (isBn ? "সঠিক" : "Correct") : (isBn ? "ভুল" : "Incorrect")} | {isBn ? "সঠিক উত্তর" : "Correct answer"}:{" "}
                     {q.options[q.correctIndex]}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Difficulty: {q.difficulty}
+                    {isBn ? "কঠিনতা" : "Difficulty"}: {q.difficulty}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Explanation: {q.explanation}
+                    {isBn ? "ব্যাখ্যা" : "Explanation"}: {q.explanation}
                   </p>
                 </article>
               );

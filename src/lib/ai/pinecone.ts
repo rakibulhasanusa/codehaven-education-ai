@@ -45,6 +45,21 @@ export async function querySimilarVectors(values: number[], topK = 3, filter?: R
   return result.matches ?? [];
 }
 
+export async function querySimilarVectorsByNamespace(
+  values: number[],
+  namespace: string,
+  topK = 3,
+  filter?: Record<string, unknown>
+) {
+  const result = await pineconeIndex(namespace).query({
+    vector: values,
+    topK,
+    includeMetadata: true,
+    ...(filter ? { filter } : {}),
+  });
+  return result.matches ?? [];
+}
+
 export async function deleteVectorById(id: string) {
   await pineconeIndex().deleteOne({ id });
 }

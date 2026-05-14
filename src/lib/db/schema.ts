@@ -100,3 +100,58 @@ export const uploadSubjectProgress = pgTable(
   },
   (table) => [uniqueIndex("upload_subject_progress_job_subject_unique").on(table.uploadJobId, table.subjectSlug)]
 );
+
+export const examSessions = pgTable("exam_sessions", {
+  id: varchar("id", { length: 80 }).primaryKey(),
+  learnerName: varchar("learner_name", { length: 120 }).notNull(),
+  language: varchar("language", { length: 20 }).notNull(),
+  subjects: text("subjects").notNull(),
+  questionCount: integer("question_count").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("generated"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const examSessionQuestions = pgTable("exam_session_questions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  examSessionId: varchar("exam_session_id", { length: 80 })
+    .notNull()
+    .references(() => examSessions.id, { onDelete: "cascade" }),
+  questionId: integer("question_id")
+    .notNull()
+    .references(() => questions.id, { onDelete: "cascade" }),
+  sortOrder: integer("sort_order").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const examAttempts = pgTable("exam_attempts", {
+  id: varchar("id", { length: 80 }).primaryKey(),
+  examSessionId: varchar("exam_session_id", { length: 80 })
+    .notNull()
+    .references(() => examSessions.id, { onDelete: "cascade" }),
+  learnerName: varchar("learner_name", { length: 120 }).notNull(),
+  score: integer("score").notNull().default(0),
+  wrong: integer("wrong").notNull().default(0),
+  unanswered: integer("unanswered").notNull().default(0),
+  accuracyPercent: integer("accuracy_percent").notNull().default(0),
+  avgTimePerQuestion: integer("avg_time_per_question").notNull().default(0),
+  estimatedPreparationLevel: varchar("estimated_preparation_level", { length: 32 }),
+  aiSummary: text("ai_summary"),
+  aiStrengths: text("ai_strengths"),
+  aiImprovements: text("ai_improvements"),
+  aiWeakTopics: text("ai_weak_topics"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const examAttemptAnswers = pgTable("exam_attempt_answers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  examAttemptId: varchar("exam_attempt_id", { length: 80 })
+    .notNull()
+    .references(() => examAttempts.id, { onDelete: "cascade" }),
+  questionId: integer("question_id")
+    .notNull()
+    .references(() => questions.id, { onDelete: "cascade" }),
+  selectedIndex: integer("selected_index"),
+  isCorrect: integer("is_correct").notNull().default(0),
+  timeSpentSeconds: integer("time_spent_seconds").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});

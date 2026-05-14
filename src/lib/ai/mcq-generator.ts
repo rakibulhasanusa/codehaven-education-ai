@@ -10,8 +10,21 @@ const mcqSchema = z.object({
   optionD: z.string().min(1),
   correctAnswer: z.enum(["A", "B", "C", "D"]),
   explanation: z.string().min(3),
-  difficulty: z.string().optional(),
-  topic: z.string().optional(),
+  difficulty: z.enum(["Basic", "Medium", "Hard"]),
+  topic: z.string().min(2),
+});
+
+const examMcqItemSchema = mcqSchema.extend({
+  subject: z.string().min(2),
+  language: z.enum(["English", "Bengali"]),
+});
+
+const aiReviewSchema = z.object({
+  summary: z.string().min(10),
+  strengths: z.array(z.string().min(3)).min(2).max(5),
+  weakTopics: z.array(z.string().min(2)).min(1).max(6),
+  improvements: z.array(z.string().min(3)).min(3).max(6),
+  estimatedPreparationLevel: z.enum(["Beginner", "Intermediate", "Advanced", "Exam-Ready"]),
 });
 
 type ExistingQuestion = {
@@ -80,4 +93,71 @@ export async function generateUniqueMcq(input: {
   }
 
   throw new Error("Could not generate a sufficiently unique MCQ after retries.");
+}
+
+export async function generateExamMcqs(input: {
+  subjects: string[];
+  language: "English" | "Bengali";
+  referenceContext: ExistingQuestion[];
+  questionCount: number;
+  referenceYearFrom?: number;
+  referenceYearTo?: number;
+}) {
+  const model = resolveGatewayModel(process.env.OPENAI_GENERATION_MODEL || "gpt-4o-mini");
+  const contextRows = input.referenceContext.slice(0, 32);
+
+  const yearHint = input.referenceYearFrom || input.referenceYearTo
+    ? `Reference exam years: ${input.referenceYearFrom ?? "N/A"} to ${input.referenceYearTo ?? "N/A"}.`
+    : "No specific year range supplied.";
+
+  const prompt = [
+    `Generate exactly ${input.questionCount} realistic BCS/job-style MCQs in ${input.language}.`,
+    `Subjects (must stay within these only): ${input.subjects.join(", ")}.`,
+    yearHint,
+    "Use historical exam patterns, wording style, option structure, and conceptual style.",
+    "Produce fresh questions with controlled creativity. Do not copy references verbatim.",
+    "Keep authenticity high, avoid hallucinated facts and unrealistic framing.",
+    "Every question must include: subject, question, optionA-D, correctAnswer, explanation, difficulty, topic, language.",
+    "Difficulty should be one of: Basic, Medium, Hard.",
+    "Correct answer must be one of A/B/C/D and explanation must justify it clearly.",
+    "Reference patterns only (do not copy):",
+    ...contextRows.map((q, i) => `${i + 1}. ${q.question}\nA) ${q.optionA}\nB) ${q.optionB}\nC) ${q.optionC}\nD) ${q.optionD}\nAnswer: ${q.correctAnswer}\nTopic: ${q.topic ?? "N/A"}\nDifficulty: ${q.difficulty ?? "N/A"}`),
+  ].join("\n\n");
+
+  const examMcqSchema = z.object({
+    questions: z.array(examMcqItemSchema).length(input.questionCount),
+  });
+
+  const { object } = await generateObject({
+    model: aiOpenAI(model),
+    schema: examMcqSchema,
+    prompt,
+  });
+
+  return object.questions;
+}
+
+export async function generateAiReview(input: {
+  language: "English" | "Bengali";
+  subjects: string[];
+  score: { correct: number; wrong: number; unanswered: number; accuracyPercent: number };
+  weakTopics: string[];
+}) {
+  const model = resolveGatewayModel(process.env.OPENAI_REVIEW_MODEL || process.env.OPENAI_GENERATION_MODEL || "gpt-4o-mini");
+  const prompt = [
+    `Create an exam performance review in ${input.language}.`,
+    `Subjects: ${input.subjects.join(", ")}.`,
+    `Score: correct=${input.score.correct}, wrong=${input.score.wrong}, unanswered=${input.score.unanswered}, accuracy=${input.score.accuracyPercent}%.`,
+    `Weak topics detected: ${input.weakTopics.join(", ") || "None explicit"}.`,
+    "Give practical and exam-focused feedback for BCS/job preparation.",
+    "Keep it concise, constructive, and realistic.",
+  ].join("\n");
+
+  const { object } = await generateObject({
+    model: aiOpenAI(model),
+    schema: aiReviewSchema,
+    prompt,
+  });
+
+  return object;
 }

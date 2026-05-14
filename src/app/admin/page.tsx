@@ -1,13 +1,13 @@
 "use client";
 
-import { DragEvent, useEffect, useMemo, useState } from "react";
+import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toaster";
 
 type Subject = { id: number; name: string; slug: string; questionCount: number };
-type Question = { id: number; question: string; correctAnswer: string; subjectName: string; difficulty: string | null };
+type Question = { id: number; question: string; correctAnswer: string; subjectName: string; difficulty: string | null; source: "admin_upload" | "ai_generated" | string };
 
 type PreviewRow = {
   rowNumber: number;
@@ -64,8 +64,6 @@ type UploadJobResponse = {
   logs?: Array<{ id: number; level: string; message: string; createdAt: string }>;
 };
 
-const PAGE_SIZE = 20;
-
 export default function AdminPage() {
   const { push } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -73,11 +71,12 @@ export default function AdminPage() {
   const [subjectName, setSubjectName] = useState("");
   const [search, setSearch] = useState("");
   const [filterSubjectId, setFilterSubjectId] = useState<number | "all">("all");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [subjectDeleteId, setSubjectDeleteId] = useState<number | null>(null);
   const [questionDeleteId, setQuestionDeleteId] = useState<number | null>(null);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<number[]>([]);
-  const [page, setPage] = useState(1);
+  const [uploadedPage, setUploadedPage] = useState(1);
+  const [aiPage, setAiPage] = useState(1);
   const [similarityThreshold, setSimilarityThreshold] = useState("0.92");
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -91,37 +90,65 @@ export default function AdminPage() {
   const [liveProgress, setLiveProgress] = useState<UploadJobResponse | null>(null);
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
   const [processingFinishedAt, setProcessingFinishedAt] = useState<number | null>(null);
-  const [pollDelayMs, setPollDelayMs] = useState(1000);
+  const [pollDelayMs] = useState(350);
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
-  const loadSubjects = async () => {
+  const loadSubjects = useCallback(async () => {
     const res = await fetch("/api/admin/subjects", { cache: "no-store" });
     setSubjects((await res.json()).subjects || []);
-  };
+  }, []);
 
-  const loadQuestions = async (q?: string, subjectId?: number | "all") => {
+  const loadQuestions = useCallback(async (q?: string, subjectId?: number | "all") => {
     const params = new URLSearchParams();
     if (q?.trim()) params.set("q", q.trim());
     if (subjectId && subjectId !== "all") params.set("subjectId", String(subjectId));
     const res = await fetch(`/api/admin/questions?${params.toString()}`, { cache: "no-store" });
     setQuestions((await res.json()).questions || []);
     setSelectedQuestionIds([]);
-    setPage(1);
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      loadSubjects(),
-      loadQuestions(),
-      fetch("/api/admin/settings/similarity-threshold", { cache: "no-store" })
-        .then((res) => res.json())
-        .then((json) => setSimilarityThreshold(String(json.threshold ?? "0.92"))),
-    ]).finally(() => setLoading(false));
+    setUploadedPage(1);
+    setAiPage(1);
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(questions.length / PAGE_SIZE));
-  const pagedQuestions = useMemo(() => questions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [questions, page]);
-  const allCurrentPageSelected = pagedQuestions.length > 0 && pagedQuestions.every((q) => selectedQuestionIds.includes(q.id));
+  useEffect(() => {
+    let canceled = false;
+    const bootstrap = async () => {
+      try {
+        const [subjectsRes, questionsRes, thresholdRes] = await Promise.all([
+          fetch("/api/admin/subjects", { cache: "no-store" }),
+          fetch("/api/admin/questions", { cache: "no-store" }),
+          fetch("/api/admin/settings/similarity-threshold", { cache: "no-store" }),
+        ]);
+        const subjectsJson = await subjectsRes.json();
+        const questionsJson = await questionsRes.json();
+        const thresholdJson = await thresholdRes.json();
+        if (canceled) return;
+        setSubjects(subjectsJson.subjects || []);
+        setQuestions(questionsJson.questions || []);
+        setSimilarityThreshold(String(thresholdJson.threshold ?? "0.92"));
+      } finally {
+        if (!canceled) setLoading(false);
+      }
+    };
+    void bootstrap();
+    return () => {
+      canceled = true;
+    };
+  }, [loadQuestions, loadSubjects]);
+
+  const uploadedQuestions = useMemo(() => questions.filter((q) => q.source === "admin_upload"), [questions]);
+  const aiGeneratedQuestions = useMemo(() => questions.filter((q) => q.source === "ai_generated"), [questions]);
+  const uploadedTotalPages = Math.max(1, Math.ceil(uploadedQuestions.length / 20));
+  const aiTotalPages = Math.max(1, Math.ceil(aiGeneratedQuestions.length / 20));
+  const pagedUploadedQuestions = useMemo(
+    () => uploadedQuestions.slice((uploadedPage - 1) * 20, uploadedPage * 20),
+    [uploadedQuestions, uploadedPage]
+  );
+  const pagedAiGeneratedQuestions = useMemo(
+    () => aiGeneratedQuestions.slice((aiPage - 1) * 20, aiPage * 20),
+    [aiGeneratedQuestions, aiPage]
+  );
+  const allUploadedSelected = pagedUploadedQuestions.length > 0 && pagedUploadedQuestions.every((q) => selectedQuestionIds.includes(q.id));
+  const allAiSelected = pagedAiGeneratedQuestions.length > 0 && pagedAiGeneratedQuestions.every((q) => selectedQuestionIds.includes(q.id));
 
   const toggleQuestion = (id: number) => {
     setSelectedQuestionIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -199,7 +226,6 @@ export default function AdminPage() {
       }
       setImportedCount(Number(json.imported ?? 0));
       setUploadStep("embedding");
-      setPollDelayMs(1000);
       push("Upload accepted", `Processing ${json.imported} questions in background.`);
     } finally {
       clearTimeout(phaseTimer);
@@ -211,7 +237,6 @@ export default function AdminPage() {
     if (!activeUploadId) return;
     let canceled = false;
     let timer: number | null = null;
-    const startedAt = processingStartedAt ?? Date.now();
 
     const poll = async () => {
       if (canceled) return;
@@ -219,13 +244,10 @@ export default function AdminPage() {
         const tickForm = new FormData();
         tickForm.append("action", "process_tick");
         tickForm.append("uploadId", activeUploadId);
-        await fetch("/api/admin/upload", { method: "POST", body: tickForm });
-        const pollRes = await fetch(`/api/admin/upload?uploadId=${activeUploadId}`, { cache: "no-store" });
+        const pollRes = await fetch("/api/admin/upload", { method: "POST", body: tickForm });
         if (!pollRes.ok) throw new Error("poll failed");
         const data = (await pollRes.json()) as UploadJobResponse;
         setLiveProgress(data);
-        const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
-        setPollDelayMs(elapsedSec >= 120 ? 3000 : elapsedSec >= 60 ? 2000 : 1000);
         if (["completed", "partial_failed", "failed", "cancelled"].includes(data.job.status)) {
           setUploadStep("completed");
           setProcessingFinishedAt(Date.now());
@@ -243,13 +265,19 @@ export default function AdminPage() {
       canceled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [activeUploadId, pollDelayMs]);
+  }, [activeUploadId, filterSubjectId, loadQuestions, loadSubjects, pollDelayMs, processingStartedAt, search]);
+
+  useEffect(() => {
+    if (!processingStartedAt || processingFinishedAt) return;
+    const timer = window.setInterval(() => setNowTs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [processingFinishedAt, processingStartedAt]);
 
   const processingSeconds = useMemo(() => {
     if (!processingStartedAt) return 0;
-    const end = processingFinishedAt ?? Date.now();
+    const end = processingFinishedAt ?? nowTs;
     return Math.max(0, Math.round((end - processingStartedAt) / 1000));
-  }, [processingStartedAt, processingFinishedAt, liveProgress, importLoading]);
+  }, [nowTs, processingFinishedAt, processingStartedAt]);
 
   const progressTotals = useMemo(() => {
     const subjectProgress = liveProgress?.subjectProgress ?? [];
@@ -578,14 +606,16 @@ export default function AdminPage() {
         </div>
 
         {!loading && questions.length === 0 ? <p className="text-sm text-muted-foreground">No questions found.</p> : null}
+
+        <h3 className="mb-2 mt-4 text-base font-semibold">Uploaded Questions ({uploadedQuestions.length})</h3>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead><input type="checkbox" checked={allCurrentPageSelected} onChange={(e) => {
+              <TableHead><input type="checkbox" checked={allUploadedSelected} onChange={(e) => {
                 if (e.target.checked) {
-                  setSelectedQuestionIds((prev) => Array.from(new Set([...prev, ...pagedQuestions.map((q) => q.id)])));
+                  setSelectedQuestionIds((prev) => Array.from(new Set([...prev, ...pagedUploadedQuestions.map((q) => q.id)])));
                 } else {
-                  const pageIds = new Set(pagedQuestions.map((q) => q.id));
+                  const pageIds = new Set(pagedUploadedQuestions.map((q) => q.id));
                   setSelectedQuestionIds((prev) => prev.filter((id) => !pageIds.has(id)));
                 }
               }} /></TableHead>
@@ -593,7 +623,7 @@ export default function AdminPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pagedQuestions.map((q) => (
+            {pagedUploadedQuestions.map((q) => (
               <TableRow key={q.id}>
                 <TableCell><input type="checkbox" checked={selectedQuestionIds.includes(q.id)} onChange={() => toggleQuestion(q.id)} /></TableCell>
                 <TableCell>{q.subjectName}</TableCell>
@@ -605,12 +635,47 @@ export default function AdminPage() {
             ))}
           </TableBody>
         </Table>
-
         <div className="mt-3 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+          <p className="text-sm text-muted-foreground">Uploaded Page {uploadedPage} of {uploadedTotalPages}</p>
           <div className="flex gap-2">
-            <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
-            <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button variant="outline" disabled={uploadedPage <= 1} onClick={() => setUploadedPage((p) => p - 1)}>Prev</Button>
+            <Button variant="outline" disabled={uploadedPage >= uploadedTotalPages} onClick={() => setUploadedPage((p) => p + 1)}>Next</Button>
+          </div>
+        </div>
+
+        <h3 className="mb-2 mt-6 text-base font-semibold">AI Generated Questions ({aiGeneratedQuestions.length})</h3>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead><input type="checkbox" checked={allAiSelected} onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedQuestionIds((prev) => Array.from(new Set([...prev, ...pagedAiGeneratedQuestions.map((q) => q.id)])));
+                } else {
+                  const ids = new Set(pagedAiGeneratedQuestions.map((q) => q.id));
+                  setSelectedQuestionIds((prev) => prev.filter((id) => !ids.has(id)));
+                }
+              }} /></TableHead>
+              <TableHead>Subject</TableHead><TableHead>Question</TableHead><TableHead>Ans</TableHead><TableHead>Difficulty</TableHead><TableHead>Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pagedAiGeneratedQuestions.map((q) => (
+              <TableRow key={q.id}>
+                <TableCell><input type="checkbox" checked={selectedQuestionIds.includes(q.id)} onChange={() => toggleQuestion(q.id)} /></TableCell>
+                <TableCell>{q.subjectName}</TableCell>
+                <TableCell>{q.question}</TableCell>
+                <TableCell>{q.correctAnswer}</TableCell>
+                <TableCell>{q.difficulty || "-"}</TableCell>
+                <TableCell><Button variant="destructive" onClick={() => setQuestionDeleteId(q.id)}>Delete</Button></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">AI Page {aiPage} of {aiTotalPages}</p>
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={aiPage <= 1} onClick={() => setAiPage((p) => p - 1)}>Prev</Button>
+            <Button variant="outline" disabled={aiPage >= aiTotalPages} onClick={() => setAiPage((p) => p + 1)}>Next</Button>
           </div>
         </div>
       </section>

@@ -7,10 +7,12 @@ import { questions, subjects } from "@/lib/db/schema";
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const subjectId = Number(req.nextUrl.searchParams.get("subjectId"));
+  const source = req.nextUrl.searchParams.get("source")?.trim();
 
   const filters = [];
   if (q) filters.push(ilike(questions.question, `%${q}%`));
   if (Number.isInteger(subjectId) && subjectId > 0) filters.push(eq(questions.subjectId, subjectId));
+  if (source === "admin_upload" || source === "ai_generated") filters.push(eq(questions.source, source));
 
   const rows = await db()
     .select({
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
       explanation: questions.explanation,
       difficulty: questions.difficulty,
       topic: questions.topic,
+      source: questions.source,
       embeddingId: questions.embeddingId,
       createdAt: questions.createdAt,
       subjectId: subjects.id,

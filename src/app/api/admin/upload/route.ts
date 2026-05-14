@@ -257,19 +257,16 @@ async function processOneTick(uploadId: string, batchSize: number, maxBatchRetri
   return { done: false };
 }
 
-export async function GET(req: NextRequest) {
-  const uploadId = req.nextUrl.searchParams.get("uploadId");
-  if (!uploadId) return NextResponse.json({ error: "uploadId query param is required." }, { status: 400 });
-
-  const [job] = await db().select().from(uploadJobs).where(eq(uploadJobs.id, uploadId));
-  if (!job) return NextResponse.json({ error: "Upload job not found." }, { status: 404 });
+async function buildUploadProgressSnapshot(uploadId: string) {
+  const [job] = await db().select().from(uploadJobs).where(eq(uploadJobs.id, uploadId)).limit(1);
+  if (!job) return null;
 
   const [subjectProgressRows, logs] = await Promise.all([
     db().select().from(uploadSubjectProgress).where(eq(uploadSubjectProgress.uploadJobId, uploadId)),
     db().select().from(uploadLogs).where(eq(uploadLogs.uploadJobId, uploadId)).orderBy(sql`${uploadLogs.createdAt} desc`).limit(20),
   ]);
 
-  return NextResponse.json({
+  return {
     ok: true,
     uploadId,
     job,
@@ -285,7 +282,16 @@ export async function GET(req: NextRequest) {
       updatedAt: item.updatedAt,
     })),
     logs,
-  });
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const uploadId = req.nextUrl.searchParams.get("uploadId");
+  if (!uploadId) return NextResponse.json({ error: "uploadId query param is required." }, { status: 400 });
+
+  const snapshot = await buildUploadProgressSnapshot(uploadId);
+  if (!snapshot) return NextResponse.json({ error: "Upload job not found." }, { status: 404 });
+  return NextResponse.json(snapshot);
 }
 
 export async function POST(req: NextRequest) {
@@ -313,12 +319,13 @@ export async function POST(req: NextRequest) {
   if (action === "process_tick") {
     const uploadId = String(form.get("uploadId") || "").trim();
     if (!uploadId) return NextResponse.json({ error: "uploadId is required" }, { status: 400 });
-    const embeddingBatchSize = Number(process.env.UPLOAD_EMBED_BATCH_SIZE || 15);
-    const safeEmbeddingBatchSize = Math.min(20, Math.max(10, embeddingBatchSize));
+    const embeddingBatchSize = Number(process.env.UPLOAD_EMBED_BATCH_SIZE || 8);
+    const safeEmbeddingBatchSize = Math.min(10, Math.max(4, embeddingBatchSize));
     const maxBatchRetries = Number(process.env.UPLOAD_EMBED_BATCH_RETRIES || 3);
     const safeMaxBatchRetries = Math.min(3, Math.max(1, maxBatchRetries));
     const result = await processOneTick(uploadId, safeEmbeddingBatchSize, safeMaxBatchRetries);
-    return NextResponse.json({ ok: true, uploadId, ...result });
+    const snapshot = await buildUploadProgressSnapshot(uploadId);
+    return NextResponse.json({ ...(snapshot ?? { ok: true, uploadId }), ...result });
   }
 
   const file = form.get("file");
@@ -422,7 +429,7 @@ export async function POST(req: NextRequest) {
     .where(eq(questions.uploadJobId, uploadId))
     .groupBy(questions.subjectId);
 
-  const batchSize = Math.min(20, Math.max(10, Number(process.env.UPLOAD_EMBED_BATCH_SIZE || 15)));
+  const batchSize = Math.min(10, Math.max(4, Number(process.env.UPLOAD_EMBED_BATCH_SIZE || 8)));
   const subjectById = new Map(Array.from(subjectBySlug.values()).map((s) => [s.id, s]));
   for (const item of insertedCounts) {
     const subject = subjectById.get(item.subjectId);
