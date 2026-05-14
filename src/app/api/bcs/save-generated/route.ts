@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       explanation: parsed.data.mcq.explanation ?? null,
       difficulty: parsed.data.mcq.difficulty ?? null,
       topic: parsed.data.mcq.topic ?? null,
+      source: "ai_generated",
     })
     .returning({ id: questions.id });
   return NextResponse.json({ ok: true, questionId: created.id });

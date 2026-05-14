@@ -1,0 +1,21 @@
+subject,question,optionA,optionB,optionC,optionD,answer,explanation,difficulty,topic
+Bangla,বাংলা ভাষার প্রথম ব্যাকরণ রচনা করেন কে?,ঈশ্বরচন্দ্র বিদ্যাসাগর,মনিরুজ্জামান,রামমোহন রায়,হরপ্রসাদ শাস্ত্রী,A,বিদ্যাসাগর বাংলা ব্যাকরণ রচনায় পথিকৃৎ হিসেবে পরিচিত।,easy,Grammar
+Bangla,‘সোনার তরী’ কাব্যগ্রন্থের রচয়িতা কে?,কাজী নজরুল ইসলাম,রবীন্দ্রনাথ ঠাকুর,জীবনানন্দ দাশ,মাইকেল মধুসূদন দত্ত,B,‘সোনার তরী’ রবীন্দ্রনাথ ঠাকুরের কাব্যগ্রন্থ।,easy,Literature
+Bangla,বাংলা বর্ণমালায় স্বরবর্ণের সংখ্যা কত?,9,10,11,12,C,বাংলা বর্ণমালায় মোট ১১টি স্বরবর্ণ রয়েছে।,easy,Alphabet
+Bangla,‘বিদ্রোহী’ কবিতাটি কার লেখা?,জসীমউদ্দীন,সুকান্ত ভট্টাচার্য,রবীন্দ্রনাথ ঠাকুর,কাজী নজরুল ইসলাম,D,‘বিদ্রোহী’ কাজী নজরুল ইসলামের বিখ্যাত কবিতা।,easy,Poetry
+English,Choose the correct synonym of "abundant".,scarce,plentiful,limited,rare,B,"Abundant" means existing in large quantities; synonym is "plentiful".,easy,Vocabulary
+English,Identify the correct passive voice: "They are building a bridge.",A bridge is being built.,A bridge was built.,A bridge has built.,A bridge built.,A,Present continuous passive is "is being + past participle".,medium,Grammar
+English,Which sentence is grammatically correct?,He don't like tea.,She doesn't likes tea.,They doesn't like tea.,She doesn't like tea.,D,With third-person singular we use "doesn't + base verb".,easy,Grammar
+English,Pick the correct preposition: "He is good ___ mathematics.",in,at,on,for,B,Standard collocation is "good at".,easy,Preposition
+Math,If x + 7 = 15, then x = ?,6,7,8,9,C,Subtract 7 from both sides: x = 8.,easy,Algebra
+Math,The value of 12% of 250 is:,25,30,35,40,B,12% of 250 = 0.12 × 250 = 30.,easy,Percentage
+Math,If the ratio of A:B is 3:5 and A=24, then B=?,30,36,40,45,C,Scale factor is 8, so B = 5×8 = 40.,medium,Ratio
+Math,The next number in the series 2, 4, 8, 16, ... is:,18,24,30,32,D,Each term doubles; next is 32.,easy,Series
+General Knowledge,বাংলাদেশের সংবিধান কার্যকর হয় কোন তারিখে?,16 ডিসেম্বর 1971,26 মার্চ 1971,4 নভেম্বর 1972,16 ডিসেম্বর 1972,D,বাংলাদেশের সংবিধান 16 ডিসেম্বর 1972 থেকে কার্যকর হয়।,medium,Constitution
+General Knowledge,জাতিসংঘের সদর দপ্তর কোথায় অবস্থিত?,জেনেভা,নিউ ইয়র্ক,প্যারিস,ভিয়েনা,B,United Nations headquarters is in New York.,easy,International
+General Knowledge,সৌরজগতের সবচেয়ে বড় গ্রহ কোনটি?,মঙ্গল,শনি,বৃহস্পতি,ইউরেনাস,C,বৃহস্পতি (Jupiter) সৌরজগতের বৃহত্তম গ্রহ।,easy,Science
+General Knowledge,বাংলাদেশের জাতীয় সংসদের আসন সংখ্যা কত?,250,280,300,350,C,জাতীয় সংসদে সাধারণ আসন 300টি।,easy,Polity
+Science,Water boils at what temperature at standard atmospheric pressure?,90°C,95°C,100°C,110°C,C,At 1 atm pressure water boils at 100°C.,easy,Physics
+Science,Which gas is most abundant in Earth's atmosphere?,Oxygen,Carbon Dioxide,Nitrogen,Hydrogen,C,Nitrogen makes up about 78% of atmosphere.,easy,Chemistry
+Science,The SI unit of electric current is:,Volt,Ohm,Ampere,Watt,C,Electric current is measured in ampere (A).,easy,Physics
+Science,Which organelle is known as the powerhouse of the cell?,Nucleus,Ribosome,Mitochondria,Golgi body,C,Mitochondria generate ATP, hence powerhouse.,easy,Biology

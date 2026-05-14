@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
+import { aiOpenAI, resolveGatewayModel } from "@/lib/ai/provider";
 
 const mcqSchema = z.object({
   question: z.string().min(10),
@@ -31,7 +31,7 @@ export async function generateUniqueMcq(input: {
   similarityThreshold: number;
   maxRetries: number;
 }) {
-  const model = process.env.OPENAI_GENERATION_MODEL || "gpt-4o-mini";
+  const model = resolveGatewayModel(process.env.OPENAI_GENERATION_MODEL || "gpt-4o-mini");
   const normalize = (value: string) =>
     value
       .toLowerCase()
@@ -52,7 +52,7 @@ export async function generateUniqueMcq(input: {
 
   for (let attempt = 1; attempt <= input.maxRetries; attempt += 1) {
     const { object } = await generateObject({
-      model: openai(model),
+      model: aiOpenAI(model),
       schema: mcqSchema,
       prompt: [
         `Generate ONE fresh MCQ for subject: ${input.subjectName}`,
