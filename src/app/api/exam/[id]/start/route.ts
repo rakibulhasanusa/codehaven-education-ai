@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { quizAttemptAnswers, quizAttempts, quizExamQuestions, quizExams } from "@/lib/db/schema";
 import { buildOptionShuffle, shuffleArray } from "@/lib/quiz";
+import { getExamStatus } from "@/lib/exam-status";
 
 function resolveRemainingSeconds(exam: typeof quizExams.$inferSelect, startedAt: Date, now: Date) {
   if (exam.timingMode === "fixed_end_time") {
@@ -46,8 +47,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!exam) return NextResponse.json({ error: "Exam not found." }, { status: 404 });
 
   const now = new Date();
-  if (exam.startTime && now < new Date(exam.startTime)) {
+  const status = getExamStatus(
+    {
+      startTime: exam.startTime,
+      endTime: exam.endTime,
+      timingMode: exam.timingMode,
+      durationMinutes: exam.durationMinutes,
+    },
+    now
+  );
+
+  if (status === "upcoming") {
     return NextResponse.json({ error: "Exam has not started yet." }, { status: 403 });
+  }
+  if (status === "closed") {
+    return NextResponse.json({ error: "Exam is closed. You can no longer join this quiz." }, { status: 403 });
   }
 
   if (exam.multipleDeviceRestricted && deviceId) {
