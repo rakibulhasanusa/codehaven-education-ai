@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { foreignKey, integer, pgTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
+import { foreignKey, integer, pgTable, real, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable(
   "subjects",
@@ -169,7 +169,7 @@ export const quizExams = pgTable("quiz_exams", {
   endTime: timestamp("end_time", { withTimezone: true }),
   durationMinutes: integer("duration_minutes").notNull().default(60),
   timingMode: varchar("timing_mode", { length: 24 }).notNull().default("fixed_end_time"),
-  negativeMarking: integer("negative_marking").notNull().default(0),
+  negativeMarking: real("negative_marking").notNull().default(0),
   randomizeQuestions: integer("randomize_questions").notNull().default(1),
   randomizeOptions: integer("randomize_options").notNull().default(1),
   fullscreenRequired: integer("fullscreen_required").notNull().default(1),

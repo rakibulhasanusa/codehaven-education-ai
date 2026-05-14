@@ -173,7 +173,15 @@ export default function CreateQuizPage() {
         manualQuestions,
       }),
     });
-    const json = await res.json();
+    const raw = await res.text();
+    let json: { error?: string } = {};
+    if (raw) {
+      try {
+        json = JSON.parse(raw) as { error?: string };
+      } catch {
+        json = {};
+      }
+    }
     if (!res.ok) return alert(json.error || "Failed");
     router.push("/admin/quizzes");
   }

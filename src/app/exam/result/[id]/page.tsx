@@ -41,13 +41,19 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
         <h2 className="text-xl font-semibold">Detailed Review</h2>
         <div className="mt-4 space-y-3">
           {answers.map((a, i) => {
-            const ok = a.selectedAnswer && a.selectedAnswer === a.correctAnswer;
+            const isSkipped = !a.selectedAnswer;
+            const isCorrect = !isSkipped && a.selectedAnswer === a.correctAnswer;
             return (
               <div key={i} className="border rounded-lg p-3 text-sm">
                 <p className="font-medium">{i + 1}. {a.question}</p>
                 <p>User answer: {a.selectedAnswer || "Skipped"}</p>
                 <p>Correct answer: {a.correctAnswer}</p>
-                <p>Status: <span className={ok ? "text-green-700" : "text-red-700"}>{ok ? "Correct" : "Wrong"}</span></p>
+                <p>
+                  Status:{" "}
+                  <span className={isSkipped ? "text-amber-700" : isCorrect ? "text-green-700" : "text-red-700"}>
+                    {isSkipped ? "Skipped" : isCorrect ? "Correct" : "Wrong"}
+                  </span>
+                </p>
                 <p>Explanation: {a.explanation || "-"}</p>
               </div>
             );

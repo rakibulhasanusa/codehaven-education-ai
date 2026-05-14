@@ -12,8 +12,17 @@ export default function ExamLeaderboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
 
   useEffect(() => {
+    if (!Number.isFinite(examId) || examId <= 0) {
+      setRows([]);
+      return;
+    }
+
     const load = async () => {
       const res = await fetch(`/api/exam/${examId}/leaderboard?range=${range}`, { cache: "no-store" });
+      if (!res.ok) {
+        setRows([]);
+        return;
+      }
       const json = await res.json();
       setRows(json.leaderboard || []);
     };
@@ -42,7 +51,7 @@ export default function ExamLeaderboardPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={`${r.rank}-${r.name}`} className="border-b">
+                <tr key={`${r.rank}-${r.name}-${r.timeTakenSeconds}-${r.score}`} className="border-b">
                   <td className="py-2">{r.rank}</td><td className="py-2">{r.name}</td><td className="py-2">{r.score}</td><td className="py-2">{r.accuracy}%</td><td className="py-2">{r.speed}</td><td className="py-2">{Math.round(r.timeTakenSeconds / 60)} min</td>
                 </tr>
               ))}

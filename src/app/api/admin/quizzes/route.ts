@@ -26,6 +26,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  const parsedNegativeMarking = Number(body.negativeMarking);
+  const safeNegativeMarking = Number.isFinite(parsedNegativeMarking)
+    ? Math.max(0, Math.round(parsedNegativeMarking * 100) / 100)
+    : 0;
 
   const title = String(body.title ?? "").trim();
   if (!title) {
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
       endTime: body.endTime ? new Date(body.endTime) : null,
       durationMinutes: Math.max(1, Number(body.durationMinutes) || 60),
       timingMode: body.timingMode === "full_duration" ? "full_duration" : "fixed_end_time",
-      negativeMarking: Math.max(0, Number(body.negativeMarking) || 0),
+      negativeMarking: safeNegativeMarking,
       randomizeQuestions: body.randomizeQuestions === false ? 0 : 1,
       randomizeOptions: body.randomizeOptions === false ? 0 : 1,
       fullscreenRequired: body.fullscreenRequired === false ? 0 : 1,

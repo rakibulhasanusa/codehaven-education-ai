@@ -13,7 +13,8 @@
     "db:studio": "drizzle-kit studio",
     "ai:test-gateway": "node scripts/test-ai-gateway.mjs",
     "db:seed:auth": "node scripts/seed-auth.mjs",
-    "db:patch:auth": "node scripts/db-patch-auth.mjs"
+    "db:patch:auth": "node scripts/db-patch-auth.mjs",
+    "db:patch:quiz": "node scripts/db-patch-quiz.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",
