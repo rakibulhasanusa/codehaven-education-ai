@@ -5,7 +5,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-10">
       {/* ── Top bar ─────────────────────────────────────────────── */}
-      <header className="mb-8 flex items-center justify-between gap-4 border-b border-border/50 pb-6">
+      <header className="mb-2 flex items-center justify-between gap-4 border-b border-border/50 pb-6">
         <div>
           <p className="premium-kicker mb-1">MCQ AI</p>
           <h1 className="premium-title text-3xl font-bold tracking-tight">
