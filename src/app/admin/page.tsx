@@ -1,6 +1,7 @@
 "use client";
 
 import { DragEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -149,6 +150,10 @@ export default function AdminPage() {
   );
   const allUploadedSelected = pagedUploadedQuestions.length > 0 && pagedUploadedQuestions.every((q) => selectedQuestionIds.includes(q.id));
   const allAiSelected = pagedAiGeneratedQuestions.length > 0 && pagedAiGeneratedQuestions.every((q) => selectedQuestionIds.includes(q.id));
+  const previewIssueByRow = useMemo(
+    () => new Map((preview?.invalidRows ?? []).map((issue) => [issue.rowNumber, issue.reason])),
+    [preview]
+  );
 
   const toggleQuestion = (id: number) => {
     setSelectedQuestionIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -314,16 +319,18 @@ export default function AdminPage() {
   }, [liveProgress, processingSeconds]);
 
   return (
-    <main className="mx-auto max-w-7xl p-4 md:p-8">
-      <div className="mb-6 rounded-2xl border bg-white/80 p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
+    <main className="space-y-5">
+      <div className="premium-panel p-6">
+        <p className="premium-kicker">Overview</p>
+        <h1 className="premium-title mt-1 text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Manage subjects, uploads, similarity settings, and question quality.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-2xl border bg-white p-5">
+        <section className="premium-panel p-5">
           <h2 className="mb-3 text-lg font-medium">Create Subject</h2>
           <div className="flex gap-2">
-            <input className="w-full rounded-md border px-3 py-2" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
+            <input className="premium-input w-full" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
             <Button onClick={async () => {
               const res = await fetch("/api/admin/subjects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: subjectName }) });
               const json = await res.json();
@@ -335,11 +342,11 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border bg-white p-5">
+        <section className="premium-panel p-5">
           <h2 className="mb-3 text-lg font-medium">Generation Settings</h2>
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm text-muted-foreground">Similarity threshold (0 to 1)</label>
-            <input type="number" step="0.01" min="0" max="1" className="w-32 rounded-md border px-3 py-2" value={similarityThreshold} onChange={(e) => setSimilarityThreshold(e.target.value)} />
+            <input type="number" step="0.01" min="0" max="1" className="premium-input w-32" value={similarityThreshold} onChange={(e) => setSimilarityThreshold(e.target.value)} />
             <Button onClick={async () => {
               const threshold = Number(similarityThreshold);
               if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) return push("Invalid threshold", "Enter a number between 0 and 1.");
@@ -353,14 +360,14 @@ export default function AdminPage() {
         </section>
       </div>
 
-      <section className="mt-4 rounded-2xl border bg-white p-5">
+      <section className="premium-panel p-5">
         <h2 className="mb-3 text-lg font-medium">Bulk Upload Questions</h2>
 
         <div
           onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
           onDragLeave={() => setDragActive(false)}
           onDrop={onDropFile}
-          className={`rounded-xl border-2 border-dashed p-6 text-center transition ${dragActive ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}
+          className={`rounded-md border-2 border-dashed p-6 text-center transition ${dragActive ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}
         >
           <p className="text-sm font-medium">Drag & drop CSV/XLSX file here</p>
           <p className="mt-1 text-xs text-muted-foreground">or choose file manually</p>
@@ -380,7 +387,7 @@ export default function AdminPage() {
         </div>
 
         {selectedFile ? (
-          <div className="mt-4 rounded-lg border bg-muted/10 p-3 text-sm">
+          <div className="premium-surface mt-4 p-3 text-sm">
             <p><span className="font-medium">File:</span> {selectedFile.name}</p>
             <p><span className="font-medium">Size:</span> {(selectedFile.size / 1024).toFixed(1)} KB</p>
             <div className="mt-2 flex gap-2">
@@ -399,7 +406,7 @@ export default function AdminPage() {
         </div>
 
         {preview ? (
-          <div className="mt-4 rounded-xl border p-4">
+          <div className="premium-surface mt-4 p-4">
             <h3 className="text-base font-semibold">Preview Summary</h3>
             <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
               <p><span className="font-medium">File:</span> {preview.fileName}</p>
@@ -424,10 +431,19 @@ export default function AdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preview.previewRows.map((row) => (
-                    <TableRow key={row.rowNumber}>
+                  {preview.previewRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">No data available.</TableCell>
+                    </TableRow>
+                  ) : preview.previewRows.map((row) => (
+                    <TableRow key={row.rowNumber} className={previewIssueByRow.has(row.rowNumber) ? "bg-red-50/70" : ""}>
                       <TableCell>{row.rowNumber}</TableCell>
-                      <TableCell>{row.question}</TableCell>
+                      <TableCell>
+                        <p>{row.question}</p>
+                        {previewIssueByRow.has(row.rowNumber) ? (
+                          <p className="mt-1 text-xs text-red-700">Error at this row: {previewIssueByRow.get(row.rowNumber)}</p>
+                        ) : null}
+                      </TableCell>
                       <TableCell className="text-xs">A) {row.optionA}<br />B) {row.optionB}<br />C) {row.optionC}<br />D) {row.optionD}</TableCell>
                       <TableCell>{row.answer}</TableCell>
                       <TableCell>{row.difficulty || "-"}</TableCell>
@@ -442,12 +458,12 @@ export default function AdminPage() {
                 <h4 className="mb-2 text-sm font-semibold text-red-700">Invalid / Skipped Rows</h4>
                 <Table>
                   <TableHeader>
-                    <TableRow><TableHead>Row</TableHead><TableHead>Reason</TableHead><TableHead>Question</TableHead></TableRow>
+                    <TableRow><TableHead>Location</TableHead><TableHead>Reason</TableHead><TableHead>Question</TableHead></TableRow>
                   </TableHeader>
                   <TableBody>
                     {preview.invalidRows.map((issue) => (
                       <TableRow key={`${issue.rowNumber}-${issue.reason}`}>
-                        <TableCell>{issue.rowNumber}</TableCell>
+                        <TableCell>Row {issue.rowNumber}</TableCell>
                         <TableCell className="text-red-700">{issue.reason}</TableCell>
                         <TableCell>{issue.question || "-"}</TableCell>
                       </TableRow>
@@ -471,7 +487,7 @@ export default function AdminPage() {
         {importedCount !== null ? <p className="mt-3 text-sm font-medium text-green-700">Imported successfully: {importedCount} questions</p> : null}
 
         {(importLoading || liveProgress) && activeUploadId ? (
-          <div className="mt-4 rounded-xl border bg-slate-50 p-4">
+          <div className="premium-surface mt-4 p-4">
             <h3 className="text-base font-semibold">Embedding Progress</h3>
             <p className="mt-1 text-xs text-muted-foreground">Upload ID: {activeUploadId}</p>
 
@@ -495,7 +511,7 @@ export default function AdminPage() {
             {liveProgress?.subjectProgress?.length ? (
               <div className="mt-4 grid gap-2">
                 {liveProgress.subjectProgress.map((item) => (
-                  <div key={`${item.namespace}-${item.subject}`} className="rounded-lg border bg-white p-3 text-sm">
+                  <div key={`${item.namespace}-${item.subject}`} className="premium-stat text-sm">
                     <p className="font-medium">{item.subject}</p>
                     <p className="text-xs text-muted-foreground">Batch {item.completedBatches} / {item.totalBatches} | Processed {item.processedQuestions} / {item.totalQuestions}</p>
                     <p className="mt-1 text-xs">
@@ -541,7 +557,7 @@ export default function AdminPage() {
             </div>
 
             {liveProgress?.logs?.length ? (
-              <div className="mt-4 rounded-lg border bg-white p-3">
+              <div className="premium-stat mt-4">
                 <p className="mb-2 text-sm font-semibold">Recent Processing Logs</p>
                 <div className="space-y-1 text-xs">
                   {liveProgress.logs.map((log) => (
@@ -554,7 +570,7 @@ export default function AdminPage() {
             ) : null}
 
             {uploadStep === "completed" || liveProgress?.job?.status === "completed" || liveProgress?.job?.status === "partial_failed" || liveProgress?.job?.status === "failed" ? (
-              <div className="mt-4 rounded-lg border bg-white p-3 text-sm">
+              <div className="premium-stat mt-4 text-sm">
                 <p className="font-semibold">Final Summary</p>
                 <p className="mt-1"><span className="font-medium">Total completed:</span> {progressTotals.completedSubjects}</p>
                 <p><span className="font-medium">Total failed:</span> {progressTotals.failedSubjects}</p>
@@ -566,11 +582,13 @@ export default function AdminPage() {
         ) : null}
       </section>
 
-      <section className="mt-4 rounded-2xl border bg-white p-5">
+      <section className="premium-panel p-5">
         <h2 className="mb-3 text-lg font-medium">Subjects</h2>
         <div className="grid gap-2 md:grid-cols-2">
-          {subjects.map((subject) => (
-            <div key={subject.id} className="flex items-center justify-between rounded-lg border p-3">
+          {subjects.length === 0 ? (
+            <p className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">No data available.</p>
+          ) : subjects.map((subject) => (
+            <div key={subject.id} className="premium-stat flex items-center justify-between">
               <div><p className="font-medium">{subject.name}</p><p className="text-xs text-muted-foreground">{subject.questionCount} questions</p></div>
               <Button variant="destructive" onClick={() => setSubjectDeleteId(subject.id)}>Delete</Button>
             </div>
@@ -578,10 +596,10 @@ export default function AdminPage() {
         </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border bg-white p-5">
+      <section className="premium-panel p-5">
         <div className="mb-3 flex flex-wrap gap-2">
-          <input className="min-w-[220px] flex-1 rounded-md border px-3 py-2" placeholder="Search question" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="rounded-md border px-3 py-2" value={filterSubjectId} onChange={(e) => setFilterSubjectId(e.target.value === "all" ? "all" : Number(e.target.value))}>
+          <input className="premium-input min-w-[220px] flex-1" placeholder="Search question" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className="premium-input" value={filterSubjectId} onChange={(e) => setFilterSubjectId(e.target.value === "all" ? "all" : Number(e.target.value))}>
             <option value="all">All Subjects</option>
             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
@@ -623,13 +641,17 @@ export default function AdminPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pagedUploadedQuestions.map((q) => (
+            {pagedUploadedQuestions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">No data available.</TableCell>
+              </TableRow>
+            ) : pagedUploadedQuestions.map((q) => (
               <TableRow key={q.id}>
                 <TableCell><input type="checkbox" checked={selectedQuestionIds.includes(q.id)} onChange={() => toggleQuestion(q.id)} /></TableCell>
                 <TableCell>{q.subjectName}</TableCell>
                 <TableCell>{q.question}</TableCell>
                 <TableCell>{q.correctAnswer}</TableCell>
-                <TableCell>{q.difficulty || "-"}</TableCell>
+                <TableCell>{q.difficulty ? <Badge variant="secondary">{q.difficulty}</Badge> : "-"}</TableCell>
                 <TableCell><Button variant="destructive" onClick={() => setQuestionDeleteId(q.id)}>Delete</Button></TableCell>
               </TableRow>
             ))}
@@ -659,13 +681,17 @@ export default function AdminPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pagedAiGeneratedQuestions.map((q) => (
+            {pagedAiGeneratedQuestions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">No data available.</TableCell>
+              </TableRow>
+            ) : pagedAiGeneratedQuestions.map((q) => (
               <TableRow key={q.id}>
                 <TableCell><input type="checkbox" checked={selectedQuestionIds.includes(q.id)} onChange={() => toggleQuestion(q.id)} /></TableCell>
                 <TableCell>{q.subjectName}</TableCell>
                 <TableCell>{q.question}</TableCell>
                 <TableCell>{q.correctAnswer}</TableCell>
-                <TableCell>{q.difficulty || "-"}</TableCell>
+                <TableCell>{q.difficulty ? <Badge variant="secondary">{q.difficulty}</Badge> : "-"}</TableCell>
                 <TableCell><Button variant="destructive" onClick={() => setQuestionDeleteId(q.id)}>Delete</Button></TableCell>
               </TableRow>
             ))}

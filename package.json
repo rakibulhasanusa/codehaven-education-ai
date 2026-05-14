@@ -11,7 +11,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "ai:test-gateway": "node scripts/test-ai-gateway.mjs"
+    "ai:test-gateway": "node scripts/test-ai-gateway.mjs",
+    "db:seed:auth": "node scripts/seed-auth.mjs",
+    "db:patch:auth": "node scripts/db-patch-auth.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",

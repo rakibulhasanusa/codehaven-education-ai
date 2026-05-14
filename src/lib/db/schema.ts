@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, pgTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
+import { foreignKey, integer, pgTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable(
   "subjects",
@@ -153,5 +153,123 @@ export const examAttemptAnswers = pgTable("exam_attempt_answers", {
   selectedIndex: integer("selected_index"),
   isCorrect: integer("is_correct").notNull().default(0),
   timeSpentSeconds: integer("time_spent_seconds").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const quizExams = pgTable("quiz_exams", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  title: varchar("title", { length: 180 }).notNull(),
+  description: text("description"),
+  instructions: text("instructions"),
+  subjectId: integer("subject_id")
+    .notNull()
+    .references(() => subjects.id, { onDelete: "restrict" }),
+  topic: varchar("topic", { length: 150 }),
+  startTime: timestamp("start_time", { withTimezone: true }),
+  endTime: timestamp("end_time", { withTimezone: true }),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  timingMode: varchar("timing_mode", { length: 24 }).notNull().default("fixed_end_time"),
+  negativeMarking: integer("negative_marking").notNull().default(0),
+  randomizeQuestions: integer("randomize_questions").notNull().default(1),
+  randomizeOptions: integer("randomize_options").notNull().default(1),
+  fullscreenRequired: integer("fullscreen_required").notNull().default(1),
+  rightClickDisabled: integer("right_click_disabled").notNull().default(1),
+  copyPasteDisabled: integer("copy_paste_disabled").notNull().default(1),
+  multipleDeviceRestricted: integer("multiple_device_restricted").notNull().default(1),
+  isPublished: integer("is_published").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const quizExamQuestions = pgTable("quiz_exam_questions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  examId: integer("exam_id")
+    .notNull()
+    .references(() => quizExams.id, { onDelete: "cascade" }),
+  questionId: integer("question_id").references(() => questions.id, { onDelete: "set null" }),
+  question: text("question").notNull(),
+  optionA: text("option_a").notNull(),
+  optionB: text("option_b").notNull(),
+  optionC: text("option_c").notNull(),
+  optionD: text("option_d").notNull(),
+  correctAnswer: varchar("correct_answer", { length: 1 }).notNull(),
+  explanation: text("explanation"),
+  subjectId: integer("subject_id").references(() => subjects.id, { onDelete: "set null" }),
+  topic: varchar("topic", { length: 150 }),
+  difficulty: varchar("difficulty", { length: 20 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const quizAttempts = pgTable("quiz_attempts", {
+  id: varchar("id", { length: 80 }).primaryKey(),
+  examId: integer("exam_id")
+    .notNull()
+    .references(() => quizExams.id, { onDelete: "cascade" }),
+  learnerName: varchar("learner_name", { length: 120 }).notNull(),
+  deviceId: varchar("device_id", { length: 120 }),
+  status: varchar("status", { length: 24 }).notNull().default("in_progress"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  totalQuestions: integer("total_questions").notNull().default(0),
+  correct: integer("correct").notNull().default(0),
+  wrong: integer("wrong").notNull().default(0),
+  skipped: integer("skipped").notNull().default(0),
+  score: integer("score").notNull().default(0),
+  accuracyPercent: integer("accuracy_percent").notNull().default(0),
+  timeTakenSeconds: integer("time_taken_seconds").notNull().default(0),
+  rank: integer("rank"),
+  aiStrongTopics: text("ai_strong_topics"),
+  aiWeakTopics: text("ai_weak_topics"),
+  aiRepeatedMistakes: text("ai_repeated_mistakes"),
+  aiSuggestions: text("ai_suggestions"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const quizAttemptAnswers = pgTable("quiz_attempt_answers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  attemptId: varchar("attempt_id", { length: 80 })
+    .notNull()
+    .references(() => quizAttempts.id, { onDelete: "cascade" }),
+  examQuestionId: integer("exam_question_id")
+    .notNull()
+    .references(() => quizExamQuestions.id, { onDelete: "cascade" }),
+  selectedAnswer: varchar("selected_answer", { length: 1 }),
+  isMarkedForReview: integer("is_marked_for_review").notNull().default(0),
+  timeSpentSeconds: integer("time_spent_seconds").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const users = pgTable(
+  "users",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    name: varchar("name", { length: 120 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(),
+    qualification: varchar("qualification", { length: 150 }),
+    passwordHash: text("password_hash").notNull(),
+    role: varchar("role", { length: 20 }).notNull().default("user"),
+    createdByUserId: integer("created_by_user_id"),
+    isActive: integer("is_active").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("users_phone_unique").on(table.phone),
+    foreignKey({
+      name: "users_created_by_user_id_fkey",
+      columns: [table.createdByUserId],
+      foreignColumns: [table.id],
+    }).onDelete("set null"),
+  ]
+);
+
+export const authSessions = pgTable("auth_sessions", {
+  id: varchar("id", { length: 80 }).primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
