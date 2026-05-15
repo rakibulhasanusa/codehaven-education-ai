@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import PublicNavbar from "@/components/navbars/public-navbar";
 import PremiumHomepage from "@/components/home/premium-homepage";
 import PublicFooter from "@/components/navbars/public-footer";
-import { getAuthUser } from "@/lib/auth/server";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://codehaven-ai.vercel.app"),
@@ -37,12 +36,6 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  let user: Awaited<ReturnType<typeof getAuthUser>> = null;
-  try {
-    user = await getAuthUser();
-  } catch {
-    user = null;
-  }
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -101,7 +94,7 @@ export default async function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PublicNavbar />
-      <PremiumHomepage isLoggedIn={!!user} isAdmin={user?.role === "admin"} />
+      <PremiumHomepage  />
       <PublicFooter />
     </>
   );
