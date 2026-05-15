@@ -5,17 +5,19 @@ import PublicFooter from "@/components/navbars/public-footer";
 import { getAuthUser } from "@/lib/auth/server";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://codehaven-ai.vercel.app"),
   title: "AI Learning Intelligence System for Smart Exam Success",
   description:
     "CodeHaven Education AI provides AI-powered smart exam generation, subject-based MCQ intelligence, real-time dashboards, and performance analytics.",
   alternates: {
-    canonical: "/",
+    canonical: "https://codehaven-ai.vercel.app",
   },
   openGraph: {
     title: "CodeHaven Education AI | AI Learning Intelligence System",
     description:
       "AI-powered smart exam generation, performance analytics, weakness detection, and coaching intelligence.",
-    url: "/",
+    url: "https://codehaven-ai.vercel.app",
+    siteName: "CodeHaven Education AI",
     images: [
       {
         url: "/opengraph-image",
