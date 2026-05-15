@@ -58,8 +58,6 @@ export async function middleware(req: NextRequest) {
   const needsAdmin = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const needsUser =
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/exam/") ||
-    pathname.startsWith("/api/exam") ||
     pathname.startsWith("/api/auth/change-password") ||
     pathname.startsWith("/api/auth/logout");
 
@@ -81,5 +79,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/exam/:path*", "/api/admin/:path*", "/api/exam/:path*", "/api/attempts/:path*", "/api/auth/change-password", "/api/auth/logout"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/api/admin/:path*", "/api/attempts/:path*", "/api/auth/change-password", "/api/auth/logout"],
 };
