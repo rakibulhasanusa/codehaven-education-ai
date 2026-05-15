@@ -129,7 +129,7 @@ Optional public contact link used in homepage/login contact CTA:
 
 ```env
 NEXT_PUBLIC_CONTACT_URL=https://codehaveneduai.com/contact
-```
+``` 
 
 ## Run Locally
 
