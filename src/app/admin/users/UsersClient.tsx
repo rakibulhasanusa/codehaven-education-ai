@@ -4,12 +4,13 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { UserPlus, Search, Users, KeyRound, ChevronLeft, ChevronRight } from "lucide-react";
+import { UserPlus, Search, Users, KeyRound, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 type UserRow = {
@@ -43,6 +44,8 @@ export default function UsersClient({
     role: "user" as "admin" | "user",
   });
   const [resetPassword, setResetPassword] = useState<Record<number, string>>({});
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   // ── data helpers ─────────────────────────────────────────────────────────────
@@ -97,6 +100,24 @@ export default function UsersClient({
       ok: res.ok,
     });
     if (res.ok) setResetPassword((p) => ({ ...p, [userId]: "" }));
+  }
+
+  async function handleDeleteUser() {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users?id=${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg({ text: json.error || "Delete failed.", ok: false });
+        return;
+      }
+      setMsg({ text: "User deleted successfully.", ok: true });
+      setDeleteTarget(null);
+      await loadUsers(pagination.page, query);
+    } finally {
+      setDeleteBusy(false);
+    }
   }
 
   // ── render ───────────────────────────────────────────────────────────────────
@@ -242,7 +263,7 @@ export default function UsersClient({
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur">
               <tr>
-                {["Name", "Phone", "Qualification", "Role", "Reset Password"].map((h) => (
+                {["Name", "Phone", "Qualification", "Role", "Reset Password", "Delete"].map((h) => (
                   <th
                     key={h}
                     className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
@@ -255,7 +276,7 @@ export default function UsersClient({
             <tbody className="divide-y divide-border/50">
               {users.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                     No users found.
                   </td>
                 </tr>
@@ -310,6 +331,18 @@ export default function UsersClient({
                         </Button>
                       </div>
                     </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget(u)}
+                        aria-label={`Delete ${u.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -350,6 +383,25 @@ export default function UsersClient({
           </div>
         </div>
       </Card>
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete user?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete &quot;{deleteTarget?.name ?? "this user"}&quot;. If this user is an admin, all users created under that admin will also be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDeleteUser()} disabled={deleteBusy}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

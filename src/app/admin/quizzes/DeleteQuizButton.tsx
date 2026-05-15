@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
 
 type DeleteQuizButtonProps = {
@@ -16,6 +17,8 @@ export function DeleteQuizButton({ quizId, quizTitle, disabled = false }: Delete
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const canDelete = confirmText.trim() === "DELETE";
 
   return (
     <>
@@ -36,21 +39,40 @@ export function DeleteQuizButton({ quizId, quizTitle, disabled = false }: Delete
           <DialogHeader>
             <DialogTitle>Delete quiz?</DialogTitle>
             <DialogDescription>
-              This will mark "{quizTitle}" as deleted and remove it from the public exam list.
+              This will permanently delete &quot;{quizTitle}&quot; and all attempts/answers under this exam.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Type <span className="font-semibold text-foreground">DELETE</span> to confirm.
+            </p>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type DELETE"
+              className="h-9 text-sm"
+            />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpen(false);
+                setConfirmText("");
+              }}
+              disabled={busy}
+            >
               Cancel
             </Button>
             <Button
               variant="destructive"
-              disabled={busy}
+              disabled={busy || !canDelete}
               onClick={async () => {
                 setBusy(true);
                 try {
                   const res = await fetch(`/api/admin/quizzes?id=${quizId}`, { method: "DELETE" });
                   if (!res.ok) return;
+                  setConfirmText("");
                   setOpen(false);
                   router.refresh();
                 } finally {

@@ -179,15 +179,14 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Quiz id is required." }, { status: 400 });
   }
 
-  const [updated] = await db()
-    .update(quizExams)
-    .set({ isPublished: 0 })
+  const [deleted] = await db()
+    .delete(quizExams)
     .where(eq(quizExams.id, id))
     .returning({ id: quizExams.id });
 
-  if (!updated) {
+  if (!deleted) {
     return NextResponse.json({ error: "Quiz not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, id: updated.id });
+  return NextResponse.json({ ok: true, id: deleted.id });
 }

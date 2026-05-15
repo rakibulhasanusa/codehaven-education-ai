@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { createUserSchema } from "@/lib/validation/auth";
 import { hashPassword } from "@/lib/auth/password";
@@ -79,4 +79,52 @@ export async function POST(req: Request) {
     .returning({ id: users.id });
 
   return NextResponse.json({ ok: true, userId: created.id });
+}
+
+export async function DELETE(req: Request) {
+  const guard = await requireAuth("admin");
+  if (!guard.ok) return NextResponse.json({ error: guard.message }, { status: guard.status });
+
+  const { searchParams } = new URL(req.url);
+  const userId = Number(searchParams.get("id") || 0);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return NextResponse.json({ error: "User id is required." }, { status: 400 });
+  }
+  if (userId === guard.user.id) {
+    return NextResponse.json({ error: "You cannot delete your own admin account." }, { status: 400 });
+  }
+
+  const [target] = await db()
+    .select({ id: users.id, role: users.role, createdByUserId: users.createdByUserId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
+  if (target.createdByUserId !== guard.user.id) {
+    return NextResponse.json({ error: "You can only delete users created under your admin account." }, { status: 403 });
+  }
+
+  const idsToDelete = new Set<number>([target.id]);
+
+  // Delete subtree under target admin/user: all descendants by createdByUserId chain.
+  let frontier = [target.id];
+  while (frontier.length > 0) {
+    const children = await db()
+      .select({ id: users.id })
+      .from(users)
+      .where(inArray(users.createdByUserId, frontier));
+    const next: number[] = [];
+    for (const c of children) {
+      if (!idsToDelete.has(c.id)) {
+        idsToDelete.add(c.id);
+        next.push(c.id);
+      }
+    }
+    frontier = next;
+  }
+
+  const ids = Array.from(idsToDelete);
+  await db().delete(users).where(inArray(users.id, ids));
+  return NextResponse.json({ ok: true, deleted: ids.length });
 }
