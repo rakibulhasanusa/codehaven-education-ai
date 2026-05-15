@@ -18,10 +18,10 @@ export default function PublicNavbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
-      <div className="mx-auto w-full max-w-7xl px-4 py-3">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-xl">
+      <div className="mx-auto flex min-h-16 w-full max-w-7xl flex-col justify-center px-4 py-2 sm:min-h-14 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:py-0">
         <div className="flex items-center justify-between">
-          <Link href="/" className="premium-title text-lg font-black tracking-tight sm:text-xl">
+          <Link href="/" className="premium-title whitespace-nowrap text-lg font-black tracking-tight sm:text-xl">
             CodeHaven AI
           </Link>
           <button
@@ -35,7 +35,7 @@ export default function PublicNavbar() {
           </button>
         </div>
 
-        <nav className="mt-3 hidden flex-wrap items-center gap-1 sm:mt-0 sm:flex">
+        <nav className="hidden items-center gap-1 sm:flex">
           {links.map((link) => {
             const active = pathname === link.href;
             return (
@@ -43,7 +43,7 @@ export default function PublicNavbar() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "rounded-md px-3 py-1.5 text-sm font-medium leading-none transition-colors",
                   active
                     ? "bg-primary text-primary-foreground"
                     : "text-foreground/80 hover:bg-accent hover:text-foreground"
@@ -56,7 +56,7 @@ export default function PublicNavbar() {
         </nav>
 
         {open && (
-          <nav className="mt-3 grid gap-1 sm:hidden">
+          <nav className="mt-2 grid gap-1 border-t border-border/60 pt-2 sm:hidden">
             {links.map((link) => {
               const active = pathname === link.href;
               return (
