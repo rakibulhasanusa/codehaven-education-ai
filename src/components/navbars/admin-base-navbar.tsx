@@ -24,7 +24,7 @@ export default function AdminBaseNavbar() {
           <h1 className="premium-title text-2xl font-bold tracking-tight">Admin Base</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
           <nav className="flex flex-wrap items-center gap-1">
             {links.map((link) => {
               const active =
@@ -47,7 +47,9 @@ export default function AdminBaseNavbar() {
               );
             })}
           </nav>
-          <LogoutButton />
+          <div className="w-full md:w-auto">
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </header>

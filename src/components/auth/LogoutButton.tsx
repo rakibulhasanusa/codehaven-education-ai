@@ -12,7 +12,7 @@ export default function LogoutButton() {
   }
 
   return (
-    <Button variant="outline" onClick={onLogout}>
+    <Button variant="outline" onClick={onLogout} className="w-full md:w-auto">
       Logout
     </Button>
   );

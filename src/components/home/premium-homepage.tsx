@@ -116,7 +116,7 @@ const fadeIn = {
 // ── section wrapper with consistent spacing ───────────────────────────────────
 function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`relative mx-auto max-w-7xl px-4 sm:px-6 ${className}`}>
+    <section className={`relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${className}`}>
       {children}
     </section>
   );
@@ -170,9 +170,9 @@ export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
       ══════════════════════════════════════════════════════════════ */}
       <div ref={heroRef} className="relative">
         <motion.div style={{ y: heroY, opacity: heroOpac }}>
-          <Section className="pb-0 pt-12 md:pt-20">
+          <Section className="pb-0 pt-10 sm:pt-12 md:pt-20">
             {/* Top badge row */}
-            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={0} className="mb-6 flex items-center gap-3">
+            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={0} className="mb-5 flex flex-wrap items-center gap-2.5 sm:mb-6 sm:gap-3">
               <Badge className="gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
                 <Zap className="h-3 w-3" /> CodeHaven Education AI
               </Badge>
@@ -183,7 +183,7 @@ export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
             {/* Headline */}
             <motion.h1
               initial="hidden" animate="show" variants={fadeUp} custom={1}
-              className="premium-title max-w-5xl text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl md:text-[3.75rem] lg:text-[4.5rem]"
+              className="premium-title max-w-5xl text-3xl font-black leading-[1.08] tracking-tight sm:text-5xl md:text-[3.75rem] lg:text-[4.5rem]"
             >
               BCS, একাডেমিক ও কোচিং সাফল্যের জন্য
               <span className="relative mt-2 block w-fit pb-1 text-foreground opacity-100">
@@ -202,29 +202,29 @@ export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
             {/* Subtitle */}
             <motion.p
               initial="hidden" animate="show" variants={fadeUp} custom={2}
-              className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg"
+              className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base md:text-lg"
             >
               স্মার্ট পরীক্ষা তৈরি, বিষয়ভিত্তিক ইন্টেলিজেন্স, দুর্বলতা শনাক্তকরণ,
               AI রিকমেন্ডেশন এবং রিয়েল-টাইম কোচিং অ্যানালিটিক্স এক প্ল্যাটফর্মে।
             </motion.p>
 
             {/* CTAs */}
-            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={3} className="mt-8 flex flex-wrap items-center gap-3">
+            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={3} className="mt-7 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               {!isLoggedIn ? (
                 <>
-                  <Button asChild size="lg" className="gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20">
+                  <Button asChild size="lg" className="h-11 w-full gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20 sm:w-auto">
                     <Link href="/login">প্ল্যাটফর্ম শুরু করুন <ArrowRight className="h-4 w-4" /></Link>
                   </Button>
-                  <Button asChild size="lg" variant="outline" className="rounded-full px-7">
+                  <Button asChild size="lg" variant="outline" className="h-11 w-full rounded-full px-7 sm:w-auto">
                     <Link href="/smart-exam">AI স্মার্ট পরীক্ষা দেখুন</Link>
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button asChild size="lg" className="gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20">
+                  <Button asChild size="lg" className="h-11 w-full gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20 sm:w-auto">
                     <Link href={isAdmin ? "/admin" : "/dashboard"}>ওয়ার্কস্পেস খুলুন <ArrowRight className="h-4 w-4" /></Link>
                   </Button>
-                  <Button asChild size="lg" variant="outline" className="rounded-full px-7">
+                  <Button asChild size="lg" variant="outline" className="h-11 w-full rounded-full px-7 sm:w-auto">
                     <Link href="/exam">লাইভ পরীক্ষায় যান</Link>
                   </Button>
                 </>
@@ -236,7 +236,7 @@ export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
               initial={{ opacity: 0, y: 40, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.7, delay: 0.3, ease: EASE_OUT_CUBIC }}
-              className="mt-12"
+              className="mt-10 sm:mt-12"
             >
               <div className="premium-panel relative overflow-hidden rounded-3xl p-1">
                 {/* Inner glow */}
@@ -493,10 +493,10 @@ export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
               প্রদান করা হবে।
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20">
+              <Button asChild size="lg" className="h-11 w-full gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20 sm:w-auto">
                 <Link href={contactLink}>যোগাযোগ করুন <ArrowRight className="h-4 w-4" /></Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="rounded-full px-7">
+              <Button asChild size="lg" variant="outline" className="h-11 w-full rounded-full px-7 sm:w-auto">
                 <Link href="/">আরও জানুন</Link>
               </Button>
             </div>

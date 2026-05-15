@@ -610,7 +610,7 @@ export default function BcsExamApp() {
                   className="animate-shimmer h-2.5 w-[88%] rounded-full bg-muted"
                   style={{ animationDelay: "80ms" }}
                 />
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-2">
                   <div
                     className="animate-shimmer h-[72px] rounded-lg border bg-muted/70"
                     style={{ animationDelay: "120ms" }}
@@ -620,7 +620,7 @@ export default function BcsExamApp() {
                     style={{ animationDelay: "160ms" }}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   <div
                     className="animate-shimmer h-[72px] rounded-lg border bg-muted/70"
                     style={{ animationDelay: "200ms" }}
@@ -651,9 +651,9 @@ export default function BcsExamApp() {
       )}
       {/* ────────────────────────────────────────────────────────────────── */}
 
-      <header className="premium-panel rounded-2xl px-5 py-5 md:px-6 md:py-6">
+      <header className="premium-panel rounded-2xl px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{isBn ? "প্রিমিয়াম প্র্যাকটিস স্যুট" : "Premium Practice Suite"}</p>
-        <h1 className="premium-title mt-1 text-3xl font-bold tracking-tight md:text-4xl">{isBn ? "MCQ স্মার্ট এক্সাম প্ল্যাটফর্ম" : "MCQ Smart Exam Platform"}</h1>
+        <h1 className="premium-title mt-1 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">{isBn ? "MCQ স্মার্ট এক্সাম প্ল্যাটফর্ম" : "MCQ Smart Exam Platform"}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {isBn
             ? "AI-জেনারেটেড পরীক্ষা, নির্ধারিত সময়, স্মার্ট ফিডব্যাক এবং প্রগ্রেস অ্যানালিটিক্স।"
@@ -680,7 +680,7 @@ export default function BcsExamApp() {
 
             <div className="space-y-2">
                 <h3 className="text-sm font-semibold">{isBn ? "বিষয় নির্বাচন করুন" : "Choose Subjects"}</h3>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {availableSubjects.map((subject) => {
                   const active = selectedSubjects.includes(subject);
                   return (
@@ -715,7 +715,7 @@ export default function BcsExamApp() {
 
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">{isBn ? "প্রশ্নের ভাষা" : "Question Language"}</h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {LANGUAGES.map((lang) => (
                   <button
                     key={lang}
@@ -743,7 +743,7 @@ export default function BcsExamApp() {
 
           <aside className="premium-panel space-y-4 rounded-2xl p-4 md:p-5">
             <h2 className="text-lg font-semibold">Biodata Report</h2>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-xl border bg-background/70 p-3">
                 <p className="text-muted-foreground">Total Exams</p>
                 <p className="text-xl font-semibold">{history.length}</p>
@@ -843,7 +843,7 @@ export default function BcsExamApp() {
               ))}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={submitExam} disabled={isSavingAttempt}>
                 {isSavingAttempt ? (isBn ? "সেভ হচ্ছে..." : "Saving...") : (isBn ? "পরীক্ষা জমা দিন" : "Submit Exam")}
               </Button>
@@ -863,7 +863,7 @@ export default function BcsExamApp() {
               </p>
               <p className="text-sm text-muted-foreground">{isBn ? "বাকি সময়" : "Time Left"}: {formatClock(examTimer)}</p>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+            <div className="grid grid-cols-1 gap-2 text-center text-sm sm:grid-cols-3">
               <div className="rounded-lg border bg-background/70 p-2">
                 <p className="text-muted-foreground">{isBn ? "উত্তর দেওয়া" : "Answered"}</p>
                 <p className="font-semibold">{answeredCount}</p>
@@ -976,7 +976,7 @@ export default function BcsExamApp() {
                 </svg>
               )}
 
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 {Object.keys(subjectStats).map((subject) => (
                   <div key={subject} className="rounded-md border p-2">
                     <p className="font-medium">{subject}</p>
