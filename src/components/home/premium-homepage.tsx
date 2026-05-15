@@ -26,7 +26,6 @@ import {
   Zap,
 } from "lucide-react";
 
-type Props = { isLoggedIn: boolean; isAdmin: boolean };
 
 const EASE_OUT_CUBIC: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -54,10 +53,10 @@ const BarChart = dynamic(
 const contactLink = process.env.NEXT_PUBLIC_CONTACT_URL || "/login";
 
 const stats = [
-  { label: "মোট প্রশ্ন",           value: "২.৪M+",  suffix: "" },
-  { label: "মোট পরীক্ষা",          value: "৯৬K+",   suffix: "" },
-  { label: "সক্রিয় শিক্ষার্থী",   value: "১৮০K+",  suffix: "" },
-  { label: "অ্যানালিটিক্স নির্ভুলতা", value: "৯৮.৭", suffix: "%" },
+  { label: "মোট প্রশ্ন",           value: "২০০০+",  suffix: "" },
+  { label: "মোট পরীক্ষা",          value: "৯৬+",   suffix: "" },
+  { label: "সক্রিয় শিক্ষার্থী",   value: "১৮০+",  suffix: "" },
+  { label: "অ্যানালিটিক্স নির্ভুলতা", value: "৯৯", suffix: "%" },
 ];
 
 const features = [
@@ -133,7 +132,7 @@ function SectionHeading({ kicker, title, subtitle }: { kicker?: string; title: s
   );
 }
 
-export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
+export default function PremiumHomepage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
   const shouldReduceMotion = useReducedMotion();
@@ -210,25 +209,12 @@ export default function PremiumHomepage({ isLoggedIn, isAdmin }: Props) {
 
             {/* CTAs */}
             <motion.div initial="hidden" animate="show" variants={fadeUp} custom={3} className="mt-7 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-              {!isLoggedIn ? (
-                <>
                   <Button asChild size="lg" className="h-11 w-full gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20 sm:w-auto">
                     <Link href="/login">প্ল্যাটফর্ম শুরু করুন <ArrowRight className="h-4 w-4" /></Link>
                   </Button>
                   <Button asChild size="lg" variant="outline" className="h-11 w-full rounded-full px-7 sm:w-auto">
                     <Link href="/smart-exam">AI স্মার্ট পরীক্ষা দেখুন</Link>
                   </Button>
-                </>
-              ) : (
-                <>
-                  <Button asChild size="lg" className="h-11 w-full gap-2 rounded-full px-7 font-semibold shadow-lg shadow-primary/20 sm:w-auto">
-                    <Link href={isAdmin ? "/admin" : "/dashboard"}>ওয়ার্কস্পেস খুলুন <ArrowRight className="h-4 w-4" /></Link>
-                  </Button>
-                  <Button asChild size="lg" variant="outline" className="h-11 w-full rounded-full px-7 sm:w-auto">
-                    <Link href="/exam">লাইভ পরীক্ষায় যান</Link>
-                  </Button>
-                </>
-              )}
             </motion.div>
 
             {/* Hero chart panel */}

@@ -315,7 +315,15 @@ export default function BcsExamApp() {
 
     void (async () => {
       try {
-        const response = await fetch("/api/admin/subjects", { cache: "no-store" });
+        const response = await fetch("/api/bcs/subjects", { cache: "no-store" });
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          if (!cancelled) {
+            setAvailableSubjects([]);
+            setSelectedSubjects([]);
+          }
+          return;
+        }
         const json = (await response.json()) as { subjects?: string[] };
         if (!response.ok || cancelled) return;
 
