@@ -24,8 +24,53 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MCQ Smart Exam",
-  description: "Timed MCQ practice with result analytics and smart review",
+  metadataBase: new URL("https://codehaveneduai.com"),
+  title: {
+    default: "CodeHaven Education AI",
+    template: "%s | CodeHaven Education AI",
+  },
+  description:
+    "CodeHaven Education AI is an AI Learning Intelligence System for BCS, academic students, coaching centers, and educational institutions.",
+  applicationName: "CodeHaven Education AI",
+  keywords: [
+    "CodeHaven Education AI",
+    "AI Learning Intelligence System",
+    "AI exam platform",
+    "BCS preparation",
+    "smart exam generation",
+    "MCQ generation",
+    "student performance analytics",
+    "coaching management software",
+    "educational institution analytics",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: "CodeHaven Education AI",
+    title: "CodeHaven Education AI",
+    description:
+      "Premium AI Learning Intelligence System with smart exam generation, analytics, and recommendations.",
+    url: "/",
+    locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "CodeHaven Education AI",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CodeHaven Education AI",
+    description:
+      "AI Learning Intelligence System for BCS, academic learners, coaching centers, and institutions.",
+    images: ["/twitter-image"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

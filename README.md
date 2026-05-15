@@ -1,101 +1,148 @@
-# MCQ AI System
+# CodeHaven Education AI
 
-এই প্রজেক্টে admin (`/admin`) থেকে Excel/CSV আপলোড করে MCQ ব্যাংক তৈরি করা যায়, আর client (`/bcs`) থেকে subject-wise নতুন MCQ generate করা যায়।
+CodeHaven Education AI is an **AI Learning Intelligence System** for BCS candidates, academic students, coaching centers, and educational institutions.
 
-## Excel/CSV ফাইল ফরম্যাট
+It provides AI-powered exam generation, exam operations, learner analytics, weakness detection, role-based dashboards, and admin management tools.
 
-আপনি `.csv`, `.xlsx`, `.xls` আপলোড করতে পারবেন।
+## Core Product Functions
 
-### Required Columns (exact name)
+### 1) Public Website
+- Premium homepage with Bangla content and product positioning.
+- Public navigation and footer across main public pages.
+- Contact guidance for account opening (manual account provisioning).
+- SEO metadata, Open Graph, Twitter image generation, robots, and sitemap.
 
-1. `subject`
-2. `question`
-3. `optionA`
-4. `optionB`
-5. `optionC`
-6. `optionD`
-7. `answer`
+### 2) Authentication & Access Control
+- Secure login for both admins and learners.
+- Session-based auth with server-side guards.
+- Role-based route protection:
+  - Admin-only pages under `/admin`
+  - User-only pages under `/dashboard`
+- Logout and password change support.
 
-### Optional Columns
+### 3) Smart Exam Experience (Learner Side)
+- Subject-based smart MCQ exam generation.
+- Timed exam-taking interface.
+- Exam attempt submission and scoring.
+- Attempt history loading and review.
+- AI-powered post-exam review (summary, strengths, weaknesses, improvements).
 
-1. `explanation`
-2. `difficulty`
-3. `topic`
+### 4) Exam System (Published Quiz Exams)
+- Published exam listing (`/exam`) with status handling.
+- Exam start/progress/submit flow via APIs.
+- Leaderboard endpoints for exam rankings.
+- Result page with analytics charts.
 
-## `answer` field rule
+### 5) User Dashboard
+- Personal dashboard with performance analytics.
+- Weak subject/topic insights from attempt data.
+- User leaderboard view.
+- Account password management.
 
-`answer` শুধু এই চারটা ভ্যালু হবে:
+### 6) Admin Dashboard & Management
+- Admin overview dashboard.
+- Quiz management:
+  - Create quizzes
+  - View quizzes
+  - Delete quizzes
+  - Timing/status monitoring
+- Question bank management.
+- Results analytics view.
+- Leaderboard analytics view.
+- User management and reset-password actions.
+- Subject management endpoints.
 
-- `A`
-- `B`
-- `C`
-- `D`
+### 7) AI & Data Intelligence
+- AI MCQ generation pipelines.
+- Embedding generation for retrieval workflows.
+- Similarity search integration with Pinecone.
+- Response parsing and validation.
+- Weakness detection and AI recommendation logic.
 
-Small letter (`a/b/c/d`) দিলে system auto-uppercase করে নেয়।
+### 8) Upload & Question Bank Ingestion
+- Admin upload endpoint for MCQ ingestion.
+- Supports CSV/XLSX workflows.
+- Row-level validation and normalization.
+- Subject auto-linking/management during ingestion.
 
-## Example CSV
+### 9) Analytics & Visualization
+- Dashboard analytics (user and admin sides).
+- Custom chart components for trend, area, bar, real-time charts.
+- Performance trend, weak-topic analysis, and accuracy visualization.
 
-```csv
-subject,question,optionA,optionB,optionC,optionD,answer,explanation,difficulty,topic
-Bangladesh Affairs,Who wrote 'Amar Dekha Naya Chin'?,Sheikh Mujibur Rahman,Kazi Nazrul Islam,Rabindranath Tagore,Begum Rokeya,A,It was written by Sheikh Mujib,Medium,History
-General Science,Which gas is highest in atmosphere?,Oxygen,Nitrogen,Carbon Dioxide,Hydrogen,B,Nitrogen is about 78%,Basic,Chemistry
+### 10) SEO & Sharing
+- Site-level metadata in app layout.
+- Dynamic Open Graph image (`/opengraph-image`).
+- Dynamic Twitter image (`/twitter-image`).
+- `robots.txt` via metadata conventions.
+- `sitemap.xml` via metadata conventions.
+
+## Main Route Map
+
+### Public
+- `/` Home
+- `/login` Login
+- `/exam` Exam listing
+- `/smart-exam` Smart exam app
+
+### Learner (Protected)
+- `/dashboard`
+- `/dashboard/leaderboard`
+- `/dashboard/password`
+
+### Admin (Protected)
+- `/admin`
+- `/admin/quizzes`
+- `/admin/quizzes/create`
+- `/admin/questions`
+- `/admin/results`
+- `/admin/leaderboard`
+- `/admin/users`
+- `/admin/mcq-bulider`
+
+### System Pages
+- Global error page
+- Global not-found page
+
+## API Capabilities (High-Level)
+
+- Auth APIs: login, logout, me, change-password
+- Exam APIs: list, start, progress, submit, leaderboard
+- Attempt APIs: save/read attempts
+- Admin APIs: quizzes, questions, users, results, leaderboard, subjects, upload
+- AI APIs: MCQ generation, BCS generation, similarity, save-generated
+
+## Tech Stack
+
+- **Framework:** Next.js App Router (TypeScript)
+- **UI:** Tailwind CSS + shadcn/ui
+- **Animation:** Framer Motion
+- **DB:** Postgres with Drizzle ORM
+- **AI:** OpenAI SDK integration
+- **Vector DB:** Pinecone
+
+## Environment Notes
+
+Create `.env` from `.env.example` and provide required secrets/keys (database, auth, AI, vector DB).
+
+Optional public contact link used in homepage/login contact CTA:
+
+```env
+NEXT_PUBLIC_CONTACT_URL=https://codehaveneduai.com/contact
 ```
 
-## Excel sheet structure
-
-- প্রথম row = header row (column names)
-- পরের rowগুলো = question data
-- এক sheet হলেও যথেষ্ট (system first sheet parse করে)
-
-## Important Upload Notes
-
-1. Header name ভুল হলে row validation fail করবে
-2. `question` empty হলে reject হবে
-3. `optionA-D` এর যেকোনোটা empty হলে reject হবে
-4. `answer` invalid হলে reject হবে
-5. `subject` না থাকলে reject হবে
-
-## কোথায় sample template আছে
-
-Sample template:
-
-- `public/templates/mcq-upload-template.csv`
-
-আপনি এটা download করে একই structure follow করতে পারবেন।
-
-## Upload এর পর কী হয়
-
-1. File parse হয় (`csv/xlsx`)
-2. প্রতিটি row validate হয়
-3. Subject না থাকলে auto-create হয়
-4. Questions Supabase Postgres-এ save হয়
-5. শুধুমাত্র admin-uploaded প্রশ্নের জন্য embedding generate হয়
-6. Pinecone-এ vector store হয় এবং `embeddingId` DB-তে save হয়
-
-## Generated MCQ সম্পর্কে
-
-- `/bcs` থেকে AI-generated MCQ save করা হলে সেটা DB-তে save হয়
-- AI-generated MCQ এর জন্য embedding/vector store করা হয় না
-
-## Setup (quick)
-
-1. Dependencies install:
+## Run Locally
 
 ```bash
 pnpm install
-```
-
-2. Env file setup:
-
-- `.env.example` দেখে `.env` configure করুন
-
-3. Run app:
-
-```bash
 pnpm dev
 ```
 
-4. Open routes:
+Open: `http://localhost:3000`
 
-- Admin: `http://localhost:3000/admin`
-- Client: `http://localhost:3000/bcs`
+## Build & Quality
+
+```bash
+pnpm exec eslint .
+pnpm build
+```

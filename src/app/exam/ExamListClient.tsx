@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { getExamStatus } from "@/lib/exam-status";
 
 type ExamMeta = {
@@ -72,6 +71,7 @@ const STATUS_CONFIG = {
     border: "var(--border)",
   },
 } as const;
+const ORDER = { live: 0, upcoming: 1, closed: 2 } as const;
 
 // ─── Exam card ─────────────────────────────────────────────────────────────────
 function ExamCard({
@@ -372,7 +372,6 @@ export default function ExamListClient({ initialExams }: { initialExams: ExamMet
   }, [exams, now]);
 
   // Stable sort: live → upcoming → closed (no re-ordering on status change)
-  const ORDER = { live: 0, upcoming: 1, closed: 2 } as const;
   const sorted = useMemo(
     () => [...rows].sort((a, b) => ORDER[a.status] - ORDER[b.status]),
     [rows],

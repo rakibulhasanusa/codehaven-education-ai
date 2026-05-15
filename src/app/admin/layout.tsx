@@ -1,5 +1,5 @@
 import { AdminSidebar } from "@/components/admin/sidebar";
-import LogoutButton from "@/components/auth/LogoutButton";
+import AdminBaseNavbar from "@/components/navbars/admin-base-navbar";
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/server";
 
@@ -11,16 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-10">
-      {/* ── Top bar ─────────────────────────────────────────────── */}
-      <header className="mb-2 flex items-center justify-between gap-4 border-b border-border/50 pb-6">
-        <div>
-          <p className="premium-kicker mb-1">MCQ AI</p>
-          <h1 className="premium-title text-3xl font-bold tracking-tight">
-            Administration
-          </h1>
-        </div>
-        <LogoutButton />
-      </header>
+      <AdminBaseNavbar />
 
       {/* ── Body ────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">

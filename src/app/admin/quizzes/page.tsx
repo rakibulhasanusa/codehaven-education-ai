@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card";
 import { getExamMeta } from "@/lib/quiz";
 import { getExamStatus } from "@/lib/exam-status";
 import { ClipboardList, Plus, Timer, Radio, Trash2 } from "lucide-react";

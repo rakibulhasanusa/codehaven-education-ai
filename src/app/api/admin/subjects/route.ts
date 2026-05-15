@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, ilike, sql } from "drizzle-orm";
+import { desc, eq, ilike, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { questions, subjects } from "@/lib/db/schema";
 import { createSubjectSchema } from "@/lib/validation/mcq";

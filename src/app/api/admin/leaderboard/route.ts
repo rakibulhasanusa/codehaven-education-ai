@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { quizAttemptAnswers, quizAttempts, quizExamQuestions, quizExams } from "@/lib/db/schema";
+import { quizAttemptAnswers, quizAttempts, quizExamQuestions } from "@/lib/db/schema";
 
 export async function GET() {
   const totalParticipants = await db().select({ c: sql<number>`count(*)::int` }).from(quizAttempts).where(eq(quizAttempts.status, "submitted"));

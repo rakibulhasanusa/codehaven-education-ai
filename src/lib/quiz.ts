@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { quizAttemptAnswers, quizAttempts, quizExamQuestions, quizExams, subjects } from "@/lib/db/schema";
+import { quizAttempts, quizExams, subjects } from "@/lib/db/schema";
 
 export function normalizeAnswer(v: string | null | undefined) {
   if (!v) return null;

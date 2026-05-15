@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { examSessionQuestions, examSessions, questions, subjects } from "@/lib/db/schema";
 import { generateEmbedding } from "@/lib/ai/embeddings";
 import { generateExamMcqs } from "@/lib/ai/mcq-generator";
 import { querySimilarVectorsByNamespace } from "@/lib/ai/pinecone";
+import { getAuthUser } from "@/lib/auth/server";
 import { generateExamSchema } from "@/lib/validation/mcq";
 import { slugify } from "@/lib/helpers/slug";
+
+const DAILY_GENERATE_LIMIT = 5;
 
 function normalizeQuestion(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -20,6 +23,33 @@ export async function POST(req: NextRequest) {
   }
 
   const input = parsed.data;
+  const authUser = await getAuthUser();
+  const effectiveLearnerName = authUser?.name?.trim() || input.learnerName.trim();
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+  const todaySessions = await db()
+    .select({ id: examSessions.id })
+    .from(examSessions)
+    .where(
+      and(
+        eq(examSessions.learnerName, effectiveLearnerName),
+        gte(examSessions.createdAt, startOfDay),
+        lt(examSessions.createdAt, endOfDay),
+      )
+    )
+    .limit(DAILY_GENERATE_LIMIT);
+
+  if (todaySessions.length >= DAILY_GENERATE_LIMIT) {
+    return NextResponse.json(
+      { error: "Daily limit reached. You can generate up to 5 requests per day." },
+      { status: 429 }
+    );
+  }
+
   const expectedQuestionCount = input.subjects.length * 10;
   if (input.subjects.length > 2) {
     return NextResponse.json({ error: "Maximum 2 subjects are allowed." }, { status: 400 });
@@ -127,7 +157,7 @@ export async function POST(req: NextRequest) {
   const inserted = await db().transaction(async (tx) => {
     await tx.insert(examSessions).values({
       id: examSessionId,
-      learnerName: input.learnerName,
+      learnerName: effectiveLearnerName,
       language: input.language,
       subjects: JSON.stringify(input.subjects),
       questionCount: expectedQuestionCount,

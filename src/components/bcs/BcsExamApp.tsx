@@ -254,8 +254,8 @@ export default function BcsExamApp() {
   const [learnerName, setLearnerName] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
   const [questionLanguage, setQuestionLanguage] = useState<QuestionLanguage>("Bengali");
-  const [referenceYearFrom, setReferenceYearFrom] = useState("");
-  const [referenceYearTo, setReferenceYearTo] = useState("");
+  const [referenceYearFrom] = useState("");
+  const [referenceYearTo] = useState("");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingAttempt, setIsSavingAttempt] = useState(false);
@@ -283,17 +283,31 @@ export default function BcsExamApp() {
     try {
       setLoadingHistory(true);
       const res = await fetch("/api/attempts?limit=20", { cache: "no-store" });
-      const rows = (await res.json()) as AttemptRecord[];
-      if (res.ok) {
-        setHistory(rows);
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        setHistory([]);
+        return;
       }
+
+      const payload = (await res.json()) as unknown;
+      if (!res.ok) {
+        setHistory([]);
+        return;
+      }
+
+      setHistory(Array.isArray(payload) ? (payload as AttemptRecord[]) : []);
+    } catch {
+      setHistory([]);
     } finally {
       setLoadingHistory(false);
     }
   }
 
   useEffect(() => {
-    loadHistory();
+    const id = window.setTimeout(() => {
+      void loadHistory();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   useEffect(() => {
