@@ -218,8 +218,10 @@ function ExamCard({
               <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
               <path d="M6 3.5V6l1.5 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
-            Starts in&nbsp;
-            <span className="tabular-nums">{formatCountdown(countdownSeconds)}</span>
+            <>
+              Starts in&nbsp;
+              <span className="tabular-nums">{formatCountdown(countdownSeconds)}</span>
+            </>
           </div>
         )}
 
@@ -245,7 +247,7 @@ function ExamCard({
                 style={{ background: "oklch(0.55 0.13 165)" }}
               />
             </span>
-            Exam is live — tap to enter
+            Live now — tap to enter
           </div>
         )}
 
@@ -305,11 +307,36 @@ function EmptyState() {
 export default function ExamListClient({ initialExams }: { initialExams: ExamMeta[] }) {
   const [exams, setExams] = useState(initialExams);
   const [now, setNow] = useState(() => Date.now());
+  const hasActiveWindows = useMemo(
+    () =>
+      exams.some((exam) => {
+        const status = getExamStatus(exam, new Date(now));
+        return status === "live" || status === "upcoming";
+      }),
+    [exams, now],
+  );
 
   useEffect(() => {
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(tick);
-  }, []);
+    if (!hasActiveWindows) return;
+
+    let timer: number | undefined;
+    let canceled = false;
+
+    const schedule = () => {
+      const delay = 1000 - (Date.now() % 1000);
+      timer = window.setTimeout(() => {
+        if (canceled) return;
+        setNow(Date.now());
+        schedule();
+      }, delay);
+    };
+
+    schedule();
+    return () => {
+      canceled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [hasActiveWindows]);
 
   useEffect(() => {
     let canceled = false;
@@ -332,11 +359,13 @@ export default function ExamListClient({ initialExams }: { initialExams: ExamMet
   }, []);
 
   const rows = useMemo(() => {
+    const nowDate = new Date(now);
     return exams.map((exam) => {
-      const status = getExamStatus(exam, new Date(now));
+      const status = getExamStatus(exam, nowDate);
+      const startTimeMs = exam.startTime ? new Date(exam.startTime).getTime() : null;
       const countdownSeconds =
-        exam.startTime
-          ? Math.max(0, Math.floor((new Date(exam.startTime).getTime() - now) / 1000))
+        startTimeMs !== null
+          ? Math.max(0, Math.ceil((startTimeMs - now) / 1000))
           : 0;
       return { exam, status, countdownSeconds };
     });
@@ -346,8 +375,7 @@ export default function ExamListClient({ initialExams }: { initialExams: ExamMet
   const ORDER = { live: 0, upcoming: 1, closed: 2 } as const;
   const sorted = useMemo(
     () => [...rows].sort((a, b) => ORDER[a.status] - ORDER[b.status]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows.length], // only re-sort when items are added/removed, not every tick
+    [rows],
   );
 
   return (

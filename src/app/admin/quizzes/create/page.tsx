@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import {
   Layers,
   PenLine,
   Plus,
+  Loader2,
   Search,
   Sparkles,
   Timer,
@@ -56,6 +57,7 @@ type Question = {
   question: string;
   topic: string | null;
   difficulty: string | null;
+  source?: string | null;
 };
 type ManualQuestion = {
   question: string;
@@ -72,6 +74,7 @@ type ManualQuestion = {
 // Sentinels — Radix Select forbids value=""
 const ALL_SUBJECTS = "__all__";
 const NO_DIFFICULTY = "__none__";
+const ALL_SOURCES = "__all_sources__";
 
 const blankManual: ManualQuestion = {
   question: "",
@@ -124,8 +127,11 @@ export default function CreateQuizPage() {
   const [manualQuestions, setManualQuestions] = useState<ManualQuestion[]>([
     blankManual,
   ]);
-  const [filters, setFilters] = useState({ q: "", topic: "", difficulty: "" });
+  const [filters, setFilters] = useState({ q: "", topic: "", difficulty: "", source: ALL_SOURCES });
   const [subjectFilters, setSubjectFilters] = useState<number[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+  const [hasBootstrappedQuestions, setHasBootstrappedQuestions] = useState(false);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -139,25 +145,50 @@ export default function CreateQuizPage() {
     timingMode: "fixed_end_time",
   });
 
+  const fetchQuestions = useCallback(async (
+    nextFilters: { q: string; topic: string; difficulty: string; source: string },
+    nextSubjectFilters: number[],
+  ) => {
+    setIsSearching(true);
+    try {
+      const qs = new URLSearchParams({
+        ...nextFilters,
+        ...(nextSubjectFilters.length
+          ? { subjectIds: nextSubjectFilters.join(",") }
+          : {}),
+      }).toString();
+      const res = await fetch(`/api/admin/quizzes?${qs}`, { method: "PUT" });
+      const json = await res.json();
+      setQuestions(json.questions || []);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const searchQuestions = useCallback(async (
+    nextFilters = filters,
+    nextSubjectFilters = subjectFilters,
+  ) => {
+    await fetchQuestions(nextFilters, nextSubjectFilters);
+  }, [filters, subjectFilters, fetchQuestions]);
+
   useEffect(() => {
     void (async () => {
       const s = await fetch("/api/admin/subjects", { cache: "no-store" });
       const sj = await s.json();
       setSubjects(sj.subjects || []);
+      await fetchQuestions({ q: "", topic: "", difficulty: "", source: ALL_SOURCES }, []);
+      setHasBootstrappedQuestions(true);
     })();
-  }, []);
+  }, [fetchQuestions]);
 
-  async function searchQuestions() {
-    const qs = new URLSearchParams({
-      ...filters,
-      ...(subjectFilters.length
-        ? { subjectIds: subjectFilters.join(",") }
-        : {}),
-    }).toString();
-    const res = await fetch(`/api/admin/quizzes?${qs}`, { method: "PUT" });
-    const json = await res.json();
-    setQuestions(json.questions || []);
-  }
+  useEffect(() => {
+    if (!hasBootstrappedQuestions) return;
+    const t = window.setTimeout(() => {
+      void searchQuestions();
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [filters, subjectFilters, hasBootstrappedQuestions, searchQuestions]);
 
   async function createQuiz() {
     // Strip sentinels before sending to API
@@ -199,6 +230,22 @@ export default function CreateQuizPage() {
   function removeManual(i: number) {
     setManualQuestions((p) => p.filter((_, idx) => idx !== i));
   }
+
+  function toggleSelectedQuestion(questionId: number, nextChecked: boolean) {
+    setSelectedIds((prev) => {
+      if (nextChecked) return prev.includes(questionId) ? prev : [...prev, questionId];
+      return prev.filter((id) => id !== questionId);
+    });
+  }
+
+  const visibleQuestions = useMemo(
+    () => (showSelectedOnly ? questions.filter((q) => selectedIds.includes(q.id)) : questions),
+    [questions, selectedIds, showSelectedOnly],
+  );
+  const selectedQuestions = useMemo(
+    () => questions.filter((q) => selectedIds.includes(q.id)),
+    [questions, selectedIds],
+  );
 
   const difficultyColors: Record<string, string> = {
     easy: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -441,6 +488,51 @@ export default function CreateQuizPage() {
           </CardHeader>
           <Separator />
           <CardContent className="space-y-4 pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline" className="tabular-nums">
+                  {visibleQuestions.length} shown
+                </Badge>
+                <Badge variant="secondary" className="tabular-nums">
+                  {selectedIds.length} selected
+                </Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 rounded-md border border-border/70 px-2.5 py-1.5 text-xs">
+                  <Checkbox
+                    checked={showSelectedOnly}
+                    onCheckedChange={(c) => setShowSelectedOnly(Boolean(c))}
+                  />
+                  Selected only
+                </label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={visibleQuestions.length === 0}
+                  onClick={() =>
+                    setSelectedIds((prev) => {
+                      const visibleIds = new Set(visibleQuestions.map((q) => q.id));
+                      const next = new Set(prev);
+                      visibleIds.forEach((id) => next.add(id));
+                      return Array.from(next);
+                    })
+                  }
+                >
+                  Select visible
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={selectedIds.length === 0}
+                  onClick={() => setSelectedIds([])}
+                >
+                  Clear selected
+                </Button>
+              </div>
+            </div>
+
             <div className="flex flex-wrap gap-1.5">
               <Button
                 type="button"
@@ -484,7 +576,7 @@ export default function CreateQuizPage() {
                   onChange={(e) =>
                     setFilters((p) => ({ ...p, q: e.target.value }))
                   }
-                  onKeyDown={(e) => e.key === "Enter" && searchQuestions()}
+                  onKeyDown={(e) => e.key === "Enter" && void searchQuestions()}
                 />
               </div>
               <Input
@@ -495,36 +587,99 @@ export default function CreateQuizPage() {
                   setFilters((p) => ({ ...p, topic: e.target.value }))
                 }
               />
-              <Input
-                className="w-36 text-sm"
-                placeholder="Difficulty"
-                value={filters.difficulty}
-                onChange={(e) =>
-                  setFilters((p) => ({ ...p, difficulty: e.target.value }))
+              <Select
+                value={filters.difficulty || NO_DIFFICULTY}
+                onValueChange={(v) =>
+                  setFilters((p) => ({
+                    ...p,
+                    difficulty: v === NO_DIFFICULTY ? "" : v,
+                  }))
                 }
-              />
+              >
+                <SelectTrigger className="w-40 text-sm">
+                  <SelectValue placeholder="Difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_DIFFICULTY}>Any difficulty</SelectItem>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={filters.source}
+                onValueChange={(v) =>
+                  setFilters((p) => ({
+                    ...p,
+                    source: v,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-40 text-sm">
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_SOURCES}>All sources</SelectItem>
+                  <SelectItem value="admin_upload">Uploaded</SelectItem>
+                  <SelectItem value="ai_generated">AI generated</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 type="button"
                 size="sm"
                 className="gap-1.5"
-                onClick={searchQuestions}
+                disabled={isSearching}
+                onClick={() => void searchQuestions()}
               >
-                <Filter className="h-3.5 w-3.5" />
-                Filter
+                {isSearching ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Filter className="h-3.5 w-3.5" />
+                )}
+                {isSearching ? "Searching..." : "Filter"}
               </Button>
             </div>
 
+            {selectedIds.length > 0 && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-primary">
+                    Selected question tray
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {selectedIds.length} selected
+                  </p>
+                </div>
+                <div className="flex max-h-28 flex-wrap gap-1.5 overflow-auto pr-1">
+                  {selectedQuestions.map((q) => (
+                    <button
+                      key={q.id}
+                      type="button"
+                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-primary/25 bg-background px-2 py-0.5 text-xs text-foreground hover:border-primary/45"
+                      onClick={() => toggleSelectedQuestion(q.id, false)}
+                      title={q.question}
+                    >
+                      <span className="truncate max-w-56">{q.question}</span>
+                      <span className="text-muted-foreground">×</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <ScrollArea className="h-72 rounded-xl border border-border/60">
-              {questions.length === 0 ? (
+              {visibleQuestions.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 py-12 text-center">
                   <Layers className="h-8 w-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">
-                    No questions found. Try adjusting your filters.
+                    {showSelectedOnly
+                      ? "No selected questions in the current result list."
+                      : "No questions found. Try adjusting your filters."}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-1.5 p-3">
-                  {questions.map((q) => {
+                  {visibleQuestions.map((q) => {
                     const checked = selectedIds.includes(q.id);
                     const diffKey = q.difficulty?.toLowerCase() ?? "";
                     return (
@@ -539,14 +694,17 @@ export default function CreateQuizPage() {
                         <Checkbox
                           checked={checked}
                           onCheckedChange={(c) =>
-                            setSelectedIds((p) =>
-                              c ? [...p, q.id] : p.filter((x) => x !== q.id)
-                            )
+                            toggleSelectedQuestion(q.id, Boolean(c))
                           }
                           className="mt-0.5 shrink-0"
                         />
                         <span className="flex-1 leading-snug">{q.question}</span>
                         <div className="flex shrink-0 flex-col items-end gap-1">
+                          {q.source && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                              {q.source === "ai_generated" ? "AI" : "Upload"}
+                            </Badge>
+                          )}
                           {q.topic && (
                             <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
                               {q.topic}

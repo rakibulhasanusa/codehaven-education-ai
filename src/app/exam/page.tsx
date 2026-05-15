@@ -4,7 +4,7 @@ import ExamListClient from "./ExamListClient";
 export const dynamic = "force-dynamic";
 
 export default async function ExamListPage() {
-  const exams = await getExamMeta();
+  const exams = (await getExamMeta()).filter((exam) => exam.isPublished !== 0);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">

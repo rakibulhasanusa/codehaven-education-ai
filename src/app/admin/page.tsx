@@ -321,8 +321,8 @@ export default function AdminPage() {
           { label: "Total Questions",   value: questions.length,             icon: BookOpen },
           { label: "Uploaded",          value: uploadedQuestions.length,     icon: FileUp },
           { label: "AI Generated",      value: aiGeneratedQuestions.length,  icon: BrainCircuit },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="premium-panel flex items-center gap-3 rounded-xl px-4 py-3">
+        ].map(({ label, value, icon: Icon }, index) => (
+          <div key={`${label}-${index}`} className="premium-panel flex items-center gap-3 rounded-xl px-4 py-3">
             <Icon className="h-4 w-4 shrink-0 text-primary" />
             <div>
               <p className="tabular-nums text-lg font-bold leading-none">{loading ? "—" : value}</p>

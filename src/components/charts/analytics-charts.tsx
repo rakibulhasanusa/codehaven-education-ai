@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   formatCompactNumber,
@@ -100,12 +100,17 @@ function EmptyChart({ height = 240 }: { height?: number }) {
   );
 }
 
+function toStableId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 type AxisChartProps = {
   data: ChartPoint[];
   title: string;
   subtitle?: string;
   valueLabel?: string;
   className?: string;
+  height?: number;
 };
 
 function getAxisLayout(data: ChartPoint[], width: number, height: number) {
@@ -121,12 +126,12 @@ function getAxisLayout(data: ChartPoint[], width: number, height: number) {
   return { padding, innerWidth, innerHeight, maxValue, points, baseline: padding.top + innerHeight };
 }
 
-export const LineChart = memo(function LineChart({ data, title, subtitle, valueLabel = "value", className }: AxisChartProps) {
+export const LineChart = memo(function LineChart({ data, title, subtitle, valueLabel = "value", className, height }: AxisChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
-  const gradientId = useId();
+  const gradientId = useMemo(() => `line-gradient-${toStableId(`${title}-${subtitle ?? ""}-${valueLabel}`)}`, [title, subtitle, valueLabel]);
 
   return (
-    <ChartShell title={title} subtitle={subtitle} className={className}>
+    <ChartShell title={title} subtitle={subtitle} className={className} height={height}>
       {({ width, height }) => {
         if (!data.length) return <EmptyChart height={height} />;
         const layout = getAxisLayout(data, width, height);
@@ -160,7 +165,7 @@ export const LineChart = memo(function LineChart({ data, title, subtitle, valueL
               ))}
               {layout.points.map((point, index) =>
                 index % Math.max(1, Math.ceil(layout.points.length / 5)) === 0 ? (
-                  <text key={`${point.label}-label`} x={point.x} y={height - 8} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+                  <text key={`${point.label}-${index}-label`} x={point.x} y={height - 8} textAnchor="middle" className="fill-muted-foreground text-[10px]">
                     {point.label}
                   </text>
                 ) : null
@@ -174,12 +179,12 @@ export const LineChart = memo(function LineChart({ data, title, subtitle, valueL
   );
 });
 
-export const AreaChart = memo(function AreaChart({ data, title, subtitle, valueLabel = "value", className }: AxisChartProps) {
+export const AreaChart = memo(function AreaChart({ data, title, subtitle, valueLabel = "value", className, height }: AxisChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
-  const gradientId = useId();
+  const gradientId = useMemo(() => `area-gradient-${toStableId(`${title}-${subtitle ?? ""}-${valueLabel}`)}`, [title, subtitle, valueLabel]);
 
   return (
-    <ChartShell title={title} subtitle={subtitle} className={className}>
+    <ChartShell title={title} subtitle={subtitle} className={className} height={height}>
       {({ width, height }) => {
         if (!data.length) return <EmptyChart height={height} />;
         const layout = getAxisLayout(data, width, height);
@@ -215,11 +220,11 @@ export const AreaChart = memo(function AreaChart({ data, title, subtitle, valueL
   );
 });
 
-export const BarChart = memo(function BarChart({ data, title, subtitle, valueLabel = "value", className }: AxisChartProps) {
+export const BarChart = memo(function BarChart({ data, title, subtitle, valueLabel = "value", className, height }: AxisChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
 
   return (
-    <ChartShell title={title} subtitle={subtitle} className={className}>
+    <ChartShell title={title} subtitle={subtitle} className={className} height={height}>
       {({ width, height }) => {
         if (!data.length) return <EmptyChart height={height} />;
         const layout = getAxisLayout(data, width, height);
@@ -256,14 +261,14 @@ export const BarChart = memo(function BarChart({ data, title, subtitle, valueLab
   );
 });
 
-export const PieChart = memo(function PieChart({ data, title, subtitle, className }: { data: PieSlice[]; title: string; subtitle?: string; className?: string }) {
+export const PieChart = memo(function PieChart({ data, title, subtitle, className, height }: { data: PieSlice[]; title: string; subtitle?: string; className?: string; height?: number }) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const layout = useMemo(() => getPieLayout(data), [data]);
   const total = useMemo(() => data.reduce((sum, slice) => sum + Math.max(0, slice.value), 0), [data]);
   const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
   return (
-    <ChartShell title={title} subtitle={subtitle} className={className}>
+    <ChartShell title={title} subtitle={subtitle} className={className} height={height}>
       {({ width, height }) => {
         if (!data.length || total <= 0) return <EmptyChart height={height} />;
         const radius = Math.min(width, height) * 0.34;
@@ -275,7 +280,7 @@ export const PieChart = memo(function PieChart({ data, title, subtitle, classNam
               {layout.map((slice, index) => {
                 const labelPoint = polarToCartesian(cx, cy, radius * 0.68, (slice.startAngle + slice.endAngle) / 2);
                 return (
-                  <g key={slice.label}>
+                  <g key={`${slice.label}-${index}`}>
                     <path
                       d={getArcPath(cx, cy, radius, slice.startAngle, slice.endAngle)}
                       fill={colors[index % colors.length]}
@@ -293,7 +298,7 @@ export const PieChart = memo(function PieChart({ data, title, subtitle, classNam
               })}
               <g transform={`translate(${width * 0.72} ${height * 0.26})`}>
                 {layout.map((slice, index) => (
-                  <g key={`${slice.label}-legend`} transform={`translate(0 ${index * 24})`}>
+                  <g key={`${slice.label}-${index}-legend`} transform={`translate(0 ${index * 24})`}>
                     <rect width="12" height="12" rx="3" fill={colors[index % colors.length]} />
                     <text x="20" y="10" className="fill-foreground text-xs">
                       {slice.label} - {slice.percent}%
@@ -320,26 +325,28 @@ export const ForceDirectedGraph = memo(function ForceDirectedGraph({
   title,
   subtitle,
   className,
+  height = 320,
 }: {
   nodes: GraphNode[];
   links: GraphLink[];
   title: string;
   subtitle?: string;
   className?: string;
+  height?: number;
 }) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
 
   return (
-    <ChartShell title={title} subtitle={subtitle} className={className} height={320}>
+    <ChartShell title={title} subtitle={subtitle} className={className} height={height}>
       {({ width, height }) => {
         if (!nodes.length) return <EmptyChart height={height} />;
         const graph = getDeterministicGraphLayout({ nodes, links, width, height });
         return (
           <div className="relative">
             <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
-              {graph.links.map((link) => (
+              {graph.links.map((link, index) => (
                 <line
-                  key={`${link.source}-${link.target}`}
+                  key={`${link.source}-${link.target}-${index}`}
                   x1={link.sourceNode.x}
                   y1={link.sourceNode.y}
                   x2={link.targetNode.x}
@@ -375,11 +382,13 @@ export const EmbeddingVisualization = memo(function EmbeddingVisualization({
   title,
   subtitle,
   className,
+  height = 320,
 }: {
   nodes: GraphNode[];
   title: string;
   subtitle?: string;
   className?: string;
+  height?: number;
 }) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const points = useMemo(
@@ -393,7 +402,7 @@ export const EmbeddingVisualization = memo(function EmbeddingVisualization({
   );
 
   return (
-    <ChartShell title={title} subtitle={subtitle} className={className} height={320}>
+    <ChartShell title={title} subtitle={subtitle} className={className} height={height}>
       {({ width, height }) => (
         nodes.length ? <div className="relative">
           <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">

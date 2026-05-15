@@ -136,6 +136,7 @@ export async function PUT(req: NextRequest) {
     .filter((value) => Number.isInteger(value) && value > 0) ?? [];
   const topic = params.get("topic")?.trim();
   const difficulty = params.get("difficulty")?.trim();
+  const source = params.get("source")?.trim();
 
   const filters = [];
   if (q) filters.push(ilike(questions.question, `%${q}%`));
@@ -143,6 +144,9 @@ export async function PUT(req: NextRequest) {
   else if (subjectId > 0) filters.push(eq(questions.subjectId, subjectId));
   if (topic) filters.push(ilike(questions.topic, `%${topic}%`));
   if (difficulty) filters.push(eq(questions.difficulty, difficulty));
+  if (source === "admin_upload" || source === "ai_generated") {
+    filters.push(eq(questions.source, source));
+  }
 
   const rows = await db()
     .select({
@@ -156,6 +160,7 @@ export async function PUT(req: NextRequest) {
       explanation: questions.explanation,
       topic: questions.topic,
       difficulty: questions.difficulty,
+      source: questions.source,
       subjectName: subjects.name,
       subjectId: questions.subjectId,
     })
@@ -166,4 +171,23 @@ export async function PUT(req: NextRequest) {
     .limit(300);
 
   return NextResponse.json({ questions: rows });
+}
+
+export async function DELETE(req: NextRequest) {
+  const id = Number(req.nextUrl.searchParams.get("id") || 0);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Quiz id is required." }, { status: 400 });
+  }
+
+  const [updated] = await db()
+    .update(quizExams)
+    .set({ isPublished: 0 })
+    .where(eq(quizExams.id, id))
+    .returning({ id: quizExams.id });
+
+  if (!updated) {
+    return NextResponse.json({ error: "Quiz not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true, id: updated.id });
 }

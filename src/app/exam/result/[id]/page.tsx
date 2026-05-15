@@ -2,6 +2,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { quizAttemptAnswers, quizAttempts, quizExamQuestions, quizExams } from "@/lib/db/schema";
+import ResultGraphsClient from "./ResultGraphsClient";
 
 // ── tiny helpers ──────────────────────────────────────────────────────────────
 function parseList(raw: string | null | undefined): string[] {
@@ -96,11 +97,6 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
   const skippedCount  = attempt.skipped   ?? 0;
   const totalCount    = attempt.totalQuestions ?? answers.length;
 
-  // radial arc params
-  const radius = 52;
-  const circ   = 2 * Math.PI * radius;
-  const dash   = (accuracy / 100) * circ;
-
   return (
     <main className="mx-auto max-w-5xl space-y-4 px-4 py-8">
 
@@ -127,25 +123,15 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
               </p>
             </div>
 
-            {/* score donut */}
-            <div className="relative flex h-28 w-28 shrink-0 items-center justify-center">
-              <svg className="absolute inset-0 -rotate-90" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r={radius} fill="none"
-                  stroke="var(--border)" strokeWidth="10" />
-                <circle cx="60" cy="60" r={radius} fill="none"
-                  stroke={grade.color} strokeWidth="10"
-                  strokeDasharray={`${dash} ${circ}`}
-                  strokeLinecap="round" />
-              </svg>
-              <div className="relative flex flex-col items-center">
-                <span className="text-2xl font-black tabular-nums leading-none" style={{ color: grade.color }}>
-                  {accuracy}%
-                </span>
-                <span className="mt-0.5 text-[0.6rem] font-bold uppercase tracking-widest text-muted-foreground">
-                  {grade.label}
-                </span>
-              </div>
-            </div>
+            <ResultGraphsClient
+              accuracy={accuracy}
+              gradeColor={grade.color}
+              gradeLabel={grade.label}
+              correctCount={correctCount}
+              wrongCount={wrongCount}
+              skippedCount={skippedCount}
+              totalCount={totalCount}
+            />
           </div>
 
           {/* stats row */}
@@ -167,8 +153,8 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
               { color: "oklch(0.55 0.13 165)", label: "Correct" },
               { color: "oklch(0.52 0.22 27)",  label: "Wrong"   },
               { color: "oklch(0.62 0.14 78)",  label: "Skipped" },
-            ].map(({ color, label }) => (
-              <span key={label} className="flex items-center gap-1.5">
+            ].map(({ color, label }, index) => (
+              <span key={`${label}-${index}`} className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full" style={{ background: color }} />
                 {label}
               </span>

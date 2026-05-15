@@ -1,7 +1,14 @@
 import { AdminSidebar } from "@/components/admin/sidebar";
 import LogoutButton from "@/components/auth/LogoutButton";
+import { redirect } from "next/navigation";
+import { requireAuth } from "@/lib/auth/server";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const guard = await requireAuth("admin");
+  if (!guard.ok) {
+    redirect(guard.status === 401 ? "/login" : "/dashboard");
+  }
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:py-10">
       {/* ── Top bar ─────────────────────────────────────────────── */}

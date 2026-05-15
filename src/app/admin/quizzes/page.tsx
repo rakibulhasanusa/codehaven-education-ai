@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { getExamMeta } from "@/lib/quiz";
 import { getExamStatus } from "@/lib/exam-status";
-import { ClipboardList, Plus, Timer, Radio } from "lucide-react";
+import { ClipboardList, Plus, Timer, Radio, Trash2 } from "lucide-react";
+import { DeleteQuizButton } from "./DeleteQuizButton";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,12 @@ const statusConfig = {
     dot: "bg-muted-foreground/40",
     pulse: false,
   },
+  deleted: {
+    label: "Deleted",
+    badge: "secondary" as const,
+    dot: "bg-muted-foreground/30",
+    pulse: false,
+  },
 };
 
 export default async function AdminQuizzesPage() {
@@ -37,6 +44,7 @@ export default async function AdminQuizzesPage() {
 
   const liveCnt     = quizzes.filter((q) => getExamStatus(q, now) === "live").length;
   const upcomingCnt = quizzes.filter((q) => getExamStatus(q, now) === "upcoming").length;
+  const deletedCnt   = quizzes.filter((q) => q.isPublished === 0).length;
 
   return (
     <div className="space-y-4">
@@ -64,13 +72,14 @@ export default async function AdminQuizzesPage() {
 
       {/* ── Quick stats ─────────────────────────────────────────── */}
       {quizzes.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: "Total",    value: quizzes.length, icon: ClipboardList, color: "text-primary"          },
             { label: "Live",     value: liveCnt,        icon: Radio,         color: "text-emerald-600"      },
             { label: "Upcoming", value: upcomingCnt,    icon: Timer,         color: "text-amber-600"        },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="premium-panel flex items-center gap-3 rounded-xl px-4 py-3">
+            { label: "Deleted",  value: deletedCnt,     icon: Trash2,        color: "text-muted-foreground" },
+          ].map(({ label, value, icon: Icon, color }, index) => (
+            <div key={`${label}-${index}`} className="premium-panel flex items-center gap-3 rounded-xl px-4 py-3">
               <Icon className={`h-4 w-4 shrink-0 ${color}`} />
               <div>
                 <p className="tabular-nums text-lg font-bold leading-none">{value}</p>
@@ -87,7 +96,7 @@ export default async function AdminQuizzesPage() {
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur">
               <tr>
-                {["Title", "Subject", "Topic", "Status", "Timing", "Duration"].map((h) => (
+                {["Title", "Subject", "Topic", "Status", "Timing", "Duration", "Action"].map((h) => (
                   <th
                     key={h}
                     className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
@@ -110,7 +119,7 @@ export default async function AdminQuizzesPage() {
                 </tr>
               ) : (
                 quizzes.map((q) => {
-                  const status = getExamStatus(q, now);
+                  const status = q.isPublished === 0 ? "deleted" : getExamStatus(q, now);
                   const sc = statusConfig[status] ?? statusConfig.closed;
 
                   return (
@@ -154,10 +163,19 @@ export default async function AdminQuizzesPage() {
 
                       {/* Duration */}
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <Timer className="h-3 w-3 shrink-0" />
-                          <span className="tabular-nums">{q.durationMinutes} min</span>
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Timer className="h-3 w-3 shrink-0" />
+                            <span className="tabular-nums">{q.durationMinutes} min</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {q.isPublished === 0 ? (
+                          <span className="text-xs text-muted-foreground">Deleted</span>
+                        ) : (
+                          <DeleteQuizButton quizId={q.id} quizTitle={q.title} />
+                        )}
                       </td>
                     </tr>
                   );

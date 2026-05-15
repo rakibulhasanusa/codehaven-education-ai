@@ -143,6 +143,7 @@ export async function getExamMeta() {
         durationMinutes: quizExams.durationMinutes,
         timingMode: quizExams.timingMode,
         negativeMarking: quizExams.negativeMarking,
+        isPublished: quizExams.isPublished,
         subjectName: subjects.name,
         topic: quizExams.topic,
         createdAt: quizExams.createdAt,

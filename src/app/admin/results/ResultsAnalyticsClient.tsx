@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart,
   BarChart,
@@ -11,7 +11,10 @@ import {
   RealtimeChart,
 } from "@/components/charts/analytics-charts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Maximize2 } from "lucide-react";
 import type { ChartPoint, GraphLink, GraphNode, PieSlice } from "@/lib/charts/chart-utils";
 
 export type ResultAnalyticsRow = {
@@ -32,7 +35,7 @@ export type ResultAnalyticsRow = {
 function formatDateLabel(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown";
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(date);
 }
 
 function average(values: number[]) {
@@ -163,9 +166,41 @@ function Divider({ label }: { label: string }) {
 }
 
 // ─── Chart wrapper ─────────────────────────────────────────────────────────────
-function ChartCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function ChartCard({
+  children,
+  className = "",
+  fullscreenContent,
+  fullscreenTitle = "Chart",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  fullscreenContent?: React.ReactNode;
+  fullscreenTitle?: string;
+}) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className={`premium-panel overflow-hidden transition-shadow duration-200 hover:shadow-lg ${className}`}>
+    <div className={`premium-panel relative overflow-hidden transition-shadow duration-200 hover:shadow-lg ${className}`}>
+      {fullscreenContent ? (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="absolute right-3 top-3 z-10 h-8 w-8 bg-background/80 backdrop-blur"
+              aria-label={`Open ${fullscreenTitle} in fullscreen`}
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-[96vw] p-4 sm:max-w-[92vw]">
+            <DialogHeader>
+              <DialogTitle>{fullscreenTitle}</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[84vh] overflow-auto">{fullscreenContent}</div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
       {children}
     </div>
   );
@@ -315,10 +350,20 @@ export function ResultsAnalyticsClient({ results }: { results: ResultAnalyticsRo
           description="Accuracy over time and per-exam averages across all submitted attempts."
         />
         <div className="grid gap-5 xl:grid-cols-2">
-          <ChartCard>
+          <ChartCard
+            fullscreenTitle="Accuracy Trend"
+            fullscreenContent={
+              <LineChart data={analytics.trend} title="Accuracy Trend" subtitle="Submitted attempts over time" valueLabel="accuracy" height={560} />
+            }
+          >
             <LineChart data={analytics.trend} title="Accuracy Trend" subtitle="Submitted attempts over time" valueLabel="accuracy" />
           </ChartCard>
-          <ChartCard>
+          <ChartCard
+            fullscreenTitle="Exam Performance"
+            fullscreenContent={
+              <BarChart data={analytics.examBars} title="Exam Performance" subtitle="Average accuracy by exam" valueLabel="avg accuracy" height={560} />
+            }
+          >
             <BarChart data={analytics.examBars} title="Exam Performance" subtitle="Average accuracy by exam" valueLabel="avg accuracy" />
           </ChartCard>
         </div>
@@ -334,13 +379,29 @@ export function ResultsAnalyticsClient({ results }: { results: ResultAnalyticsRo
           description="How learners answered, score momentum, and daily submission cadence."
         />
         <div className="grid gap-5 xl:grid-cols-2">
-          <ChartCard>
+          <ChartCard
+            fullscreenTitle="Answer Distribution"
+            fullscreenContent={
+              <PieChart data={analytics.distribution} title="Answer Distribution" subtitle="Correct, wrong, and skipped answers" height={560} />
+            }
+          >
             <PieChart data={analytics.distribution} title="Answer Distribution" subtitle="Correct, wrong, and skipped answers" />
           </ChartCard>
-          <ChartCard>
+          <ChartCard
+            fullscreenTitle="Performance Area"
+            fullscreenContent={
+              <AreaChart data={analytics.trend} title="Performance Area" subtitle="Recent score momentum" valueLabel="accuracy" height={560} />
+            }
+          >
             <AreaChart data={analytics.trend} title="Performance Area" subtitle="Recent score momentum" valueLabel="accuracy" />
           </ChartCard>
-          <ChartCard className="xl:col-span-2">
+          <ChartCard
+            className="xl:col-span-2"
+            fullscreenTitle="Realtime Submission Flow"
+            fullscreenContent={
+              <RealtimeChart data={analytics.realtime} title="Realtime Submission Flow" subtitle="Daily attempt volume" height={560} />
+            }
+          >
             <RealtimeChart data={analytics.realtime} title="Realtime Submission Flow" subtitle="Daily attempt volume" />
           </ChartCard>
         </div>
@@ -356,10 +417,20 @@ export function ResultsAnalyticsClient({ results }: { results: ResultAnalyticsRo
           description="Force-directed connections between learners and their exams, plus performance cluster projections."
         />
         <div className="grid gap-5">
-          <ChartCard>
+          <ChartCard
+            fullscreenTitle="Embedding Visualization"
+            fullscreenContent={
+              <EmbeddingVisualization nodes={analytics.embeddingNodes} title="Embedding Visualization" subtitle="Learner attempts projected into stable SVG clusters" height={620} />
+            }
+          >
             <EmbeddingVisualization nodes={analytics.embeddingNodes} title="Embedding Visualization" subtitle="Learner attempts projected into stable SVG clusters" />
           </ChartCard>
-          <ChartCard>
+          <ChartCard
+            fullscreenTitle="AI Relationship Graph"
+            fullscreenContent={
+              <ForceDirectedGraph nodes={analytics.graphNodes} links={analytics.graphLinks} title="AI Relationship Graph" subtitle="Learners connected to exams by performance" height={620} />
+            }
+          >
             <ForceDirectedGraph nodes={analytics.graphNodes} links={analytics.graphLinks} title="AI Relationship Graph" subtitle="Learners connected to exams by performance" />
           </ChartCard>
         </div>
