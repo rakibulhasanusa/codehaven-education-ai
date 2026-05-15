@@ -98,7 +98,7 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
   const totalCount    = attempt.totalQuestions ?? answers.length;
 
   return (
-    <main className="mx-auto max-w-5xl space-y-4 px-4 py-8">
+    <main className="mx-auto max-w-5xl space-y-4 px-4 py-6 sm:py-8">
 
       {/* ── Hero card ─────────────────────────────────────────────────── */}
       <div className="premium-panel overflow-hidden rounded-2xl">
@@ -106,7 +106,7 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
         <div className="h-1.5 w-full"
           style={{ background: "linear-gradient(90deg,oklch(0.49 0.17 250),oklch(0.67 0.13 165),oklch(0.72 0.15 78))" }} />
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* title row */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -162,10 +162,10 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* leaderboard link */}
-          <div className="mt-5 flex items-center justify-between">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
             <Link
               href={`/exam/leaderboard/${attempt.examId}`}
-              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition-all hover:opacity-80"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition-all hover:opacity-80 sm:w-auto"
               style={{
                 background: "linear-gradient(135deg,oklch(0.49 0.17 250/0.1),oklch(0.49 0.17 250/0.05))",
                 border: "1px solid oklch(0.49 0.17 250/0.25)",
@@ -246,8 +246,8 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
       )}
 
       {/* ── Detailed review ───────────────────────────────────────────── */}
-      <div className="premium-panel rounded-2xl overflow-hidden">
-        <div className="border-b px-6 py-4" style={{ borderColor: "var(--border)", background: "rgb(255 255 255/0.5)" }}>
+      <div className="premium-panel overflow-hidden rounded-2xl">
+        <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: "var(--border)", background: "rgb(255 255 255/0.5)" }}>
           <p className="premium-kicker mb-0.5">Question by Question</p>
           <h2 className="text-lg font-bold">Detailed Review</h2>
         </div>
@@ -265,7 +265,7 @@ export default async function ExamResultPage({ params }: { params: Promise<{ id:
                 : { label: "Wrong",   bg: "oklch(0.577 0.245 27/0.05)", border: "oklch(0.577 0.245 27/0.18)", color: "oklch(0.45 0.22 27)", icon: "✗", iconBg: "oklch(0.577 0.245 27/0.12)" };
 
             return (
-              <div key={i} className="px-5 py-4"
+              <div key={i} className="px-4 py-4 sm:px-5"
                 style={{ background: statusConfig.bg }}>
                 <div className="flex items-start gap-3">
                   {/* status icon */}

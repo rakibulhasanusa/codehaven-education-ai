@@ -60,22 +60,22 @@ export default function LoginPage() {
       <PublicNavbar />
 
       {/* ── Page shell ──────────────────────────────────────────── */}
-      <main className="relative flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-10">
+      <main className="relative flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-6 sm:py-10">
 
         {/* Ambient blobs */}
         <div className="pointer-events-none fixed inset-0 -z-10">
-          <div className="absolute -left-32 top-10 h-[500px] w-[500px] rounded-full bg-primary/8 blur-[100px]" />
-          <div className="absolute -right-32 bottom-10 h-[400px] w-[400px] rounded-full bg-accent/10 blur-[90px]" />
+          <div className="absolute -left-32 top-10 hidden h-[500px] w-[500px] rounded-full bg-primary/8 blur-[100px] md:block" />
+          <div className="absolute -right-32 bottom-10 hidden h-[400px] w-[400px] rounded-full bg-accent/10 blur-[90px] md:block" />
         </div>
 
         <motion.div
           initial="hidden"
           animate="show"
           variants={container}
-          className="w-full max-w-sm"
+          className="w-full max-w-sm sm:max-w-md"
         >
           {/* ── Card ──────────────────────────────────────────────── */}
-          <div className="premium-panel relative overflow-hidden rounded-3xl p-7 md:p-8">
+          <div className="premium-panel relative overflow-hidden rounded-3xl p-5 sm:p-7 md:p-8">
 
             {/* Corner accent */}
             <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-bl-[3rem] bg-gradient-to-bl from-primary/10 via-accent/5 to-transparent" />

@@ -5,7 +5,7 @@ CodeHaven Education AI is an **AI Learning Intelligence System** for BCS candida
 It provides AI-powered exam generation, exam operations, learner analytics, weakness detection, role-based dashboards, and admin management tools.
 
 ## Core Product Functions
-
+ 
 ### 1) Public Website
 - Premium homepage with Bangla content and product positioning.
 - Public navigation and footer across main public pages.

@@ -70,7 +70,7 @@ export default function ResultGraphsClient({
           <DialogTitle>Result Graph</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 p-1">
-          <div className="mx-auto relative flex h-60 w-60 items-center justify-center">
+          <div className="mx-auto relative flex h-44 w-44 items-center justify-center sm:h-60 sm:w-60">
             <svg className="absolute inset-0 -rotate-90" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--border)" strokeWidth="8" />
               <circle
@@ -85,7 +85,7 @@ export default function ResultGraphsClient({
               />
             </svg>
             <div className="relative text-center">
-              <p className="text-5xl font-black tabular-nums" style={{ color: gradeColor }}>{accuracy}%</p>
+              <p className="text-4xl font-black tabular-nums sm:text-5xl" style={{ color: gradeColor }}>{accuracy}%</p>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{gradeLabel}</p>
             </div>
           </div>
@@ -107,4 +107,3 @@ export default function ResultGraphsClient({
     </Dialog>
   );
 }
-

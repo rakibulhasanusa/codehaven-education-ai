@@ -121,12 +121,12 @@ function ExamCard({
         }}
       />
 
-      <div className="relative p-5">
+      <div className="relative p-4 sm:p-5">
         {/* Header row */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           <div className="min-w-0 flex-1">
             <h2
-              className="truncate text-base font-bold tracking-tight transition-colors duration-150"
+              className="text-base font-bold tracking-tight transition-colors duration-150 sm:truncate"
               style={{ color: "var(--foreground)" }}
             >
               {exam.title}
@@ -378,7 +378,7 @@ export default function ExamListClient({ initialExams }: { initialExams: ExamMet
   );
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
       {sorted.length === 0 ? (
         <EmptyState />
       ) : (

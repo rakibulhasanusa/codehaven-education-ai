@@ -10,7 +10,7 @@ export default async function ExamListPage() {
   return (
     <>
       <PublicNavbar />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
         {/* ── Page header ──────────────────────────────────────────────── */}
         <div className="premium-panel mb-6 overflow-hidden">
           <div
@@ -20,9 +20,9 @@ export default async function ExamListPage() {
                 "linear-gradient(90deg, oklch(0.49 0.17 250), oklch(0.67 0.13 165), oklch(0.72 0.15 78))",
             }}
           />
-          <div className="p-6 pb-5">
+          <div className="p-4 pb-4 sm:p-6 sm:pb-5">
             <span className="premium-kicker">Quiz Portal</span>
-            <h1 className="premium-title mt-1 text-4xl font-extrabold tracking-tight lg:text-5xl">
+            <h1 className="premium-title mt-1 text-2xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
               Available Exams
             </h1>
             <p className="mt-2 max-w-lg text-sm text-muted-foreground">

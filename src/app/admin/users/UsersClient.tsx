@@ -197,7 +197,7 @@ export default function UsersClient({
               </Select>
             </div>
 
-            <div className="flex items-end">
+            <div className="flex items-end sm:col-span-2 lg:col-span-1">
               <Button type="submit" className="w-full gap-2">
                 <UserPlus className="h-4 w-4" />
                 Create User
@@ -230,11 +230,11 @@ export default function UsersClient({
             </div>
 
             {/* Search */}
-            <div className="flex gap-2">
-              <div className="relative">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  className="pl-8 text-sm w-56"
+                  className="w-full pl-8 text-sm sm:w-56"
                   placeholder="Name, phone, qualification…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -260,7 +260,8 @@ export default function UsersClient({
 
         {/* Table */}
         <ScrollArea className="max-h-[60vh]">
-          <table className="w-full text-sm">
+          <div className="min-w-[760px]">
+            <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur">
               <tr>
                 {["Name", "Phone", "Qualification", "Role", "Reset Password", "Delete"].map((h) => (
@@ -347,11 +348,12 @@ export default function UsersClient({
                 ))
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </ScrollArea>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 px-4 py-3">
           <p className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground tabular-nums">{pagination.total}</span>{" "}
             total users

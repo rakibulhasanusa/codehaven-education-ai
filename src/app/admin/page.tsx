@@ -57,7 +57,7 @@ function SectionHeader({ icon: Icon, title, description, children }: { icon: Rea
 // ── pagination bar ────────────────────────────────────────────────────────────
 function PaginationBar({ page, total, onPrev, onNext, label }: { page: number; total: number; onPrev: () => void; onNext: () => void; label: string }) {
   return (
-    <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 px-4 py-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page <= 1} onClick={onPrev}>
@@ -84,53 +84,57 @@ function QuestionTable({ rows, selectedIds, allSelected, onToggleAll, onToggle, 
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-muted/40">
-          <TableHead className="w-10">
-            <input type="checkbox" className="rounded border-border" checked={allSelected} onChange={(e) => onToggleAll(e.target.checked)} />
-          </TableHead>
-          <TableHead className="text-xs uppercase tracking-wide">Subject</TableHead>
-          <TableHead className="text-xs uppercase tracking-wide">Question</TableHead>
-          <TableHead className="w-14 text-xs uppercase tracking-wide">Ans</TableHead>
-          <TableHead className="w-24 text-xs uppercase tracking-wide">Difficulty</TableHead>
-          <TableHead className="w-16 text-xs uppercase tracking-wide"></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">No questions found.</TableCell>
-          </TableRow>
-        ) : rows.map((q) => {
-          const dk = q.difficulty?.toLowerCase() ?? "";
-          return (
-            <TableRow key={q.id} className="group align-middle transition-colors hover:bg-muted/30">
-              <TableCell>
-                <input type="checkbox" className="rounded border-border" checked={selectedIds.includes(q.id)} onChange={() => onToggle(q.id)} />
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className="text-[11px] font-normal">{q.subjectName}</Badge>
-              </TableCell>
-              <TableCell className="leading-snug">{q.question}</TableCell>
-              <TableCell className="font-mono text-xs font-semibold">{q.correctAnswer}</TableCell>
-              <TableCell>
-                {q.difficulty ? (
-                  <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize ${diffStyle[dk] ?? "bg-muted/60 text-muted-foreground border-border"}`}>
-                    {q.difficulty}
-                  </span>
-                ) : <span className="text-muted-foreground/40">—</span>}
-              </TableCell>
-              <TableCell>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(q.id)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </TableCell>
+    <div className="overflow-x-auto">
+      <div className="min-w-[760px]">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40">
+              <TableHead className="w-10">
+                <input type="checkbox" className="rounded border-border" checked={allSelected} onChange={(e) => onToggleAll(e.target.checked)} />
+              </TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Subject</TableHead>
+              <TableHead className="text-xs uppercase tracking-wide">Question</TableHead>
+              <TableHead className="w-14 text-xs uppercase tracking-wide">Ans</TableHead>
+              <TableHead className="w-24 text-xs uppercase tracking-wide">Difficulty</TableHead>
+              <TableHead className="w-16 text-xs uppercase tracking-wide"></TableHead>
             </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">No questions found.</TableCell>
+              </TableRow>
+            ) : rows.map((q) => {
+              const dk = q.difficulty?.toLowerCase() ?? "";
+              return (
+                <TableRow key={q.id} className="group align-middle transition-colors hover:bg-muted/30">
+                  <TableCell>
+                    <input type="checkbox" className="rounded border-border" checked={selectedIds.includes(q.id)} onChange={() => onToggle(q.id)} />
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[11px] font-normal">{q.subjectName}</Badge>
+                  </TableCell>
+                  <TableCell className="leading-snug">{q.question}</TableCell>
+                  <TableCell className="font-mono text-xs font-semibold">{q.correctAnswer}</TableCell>
+                  <TableCell>
+                    {q.difficulty ? (
+                      <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize ${diffStyle[dk] ?? "bg-muted/60 text-muted-foreground border-border"}`}>
+                        {q.difficulty}
+                      </span>
+                    ) : <span className="text-muted-foreground/40">—</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(q.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }
 
@@ -518,7 +522,8 @@ export default function AdminPage() {
               <div>
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Question Preview ({preview.previewRows.length} rows)</h4>
                 <div className="overflow-auto rounded-lg border border-border/60">
-                  <Table>
+                  <div className="min-w-[780px]">
+                    <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/40">
                         {["Row", "Question", "Options", "Ans", "Difficulty"].map((h) => (
@@ -544,7 +549,8 @@ export default function AdminPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                    </Table>
+                  </div>
                 </div>
               </div>
 
@@ -552,7 +558,8 @@ export default function AdminPage() {
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-destructive">Invalid / Skipped Rows</h4>
                   <div className="overflow-auto rounded-lg border border-destructive/20">
-                    <Table>
+                    <div className="min-w-[700px]">
+                      <Table>
                       <TableHeader>
                         <TableRow className="bg-rose-50/40">
                           {["Location", "Reason", "Question"].map((h) => (
@@ -569,7 +576,8 @@ export default function AdminPage() {
                           </TableRow>
                         ))}
                       </TableBody>
-                    </Table>
+                      </Table>
+                    </div>
                   </div>
                 </div>
               )}

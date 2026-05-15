@@ -43,12 +43,12 @@ export default function UserLeaderboardClient({
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-8">
-      <div className="premium-panel overflow-hidden p-6">
+    <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:space-y-5 sm:py-8">
+      <div className="premium-panel overflow-hidden p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="premium-kicker">Dashboard</p>
-            <h1 className="premium-title text-3xl font-extrabold tracking-tight">Leaderboard</h1>
+            <h1 className="premium-title text-2xl font-extrabold tracking-tight sm:text-3xl">Leaderboard</h1>
           </div>
           <Badge variant="secondary" className="tabular-nums">{rows.length} ranked</Badge>
         </div>
@@ -78,11 +78,11 @@ export default function UserLeaderboardClient({
           </div>
 
           {myRank ? (
-            <div className="rounded-xl border px-4 py-2 text-sm font-semibold tabular-nums">
+            <div className="rounded-xl border px-3 py-2 text-sm font-semibold tabular-nums sm:px-4">
               Your Rank: #{myRank}
             </div>
           ) : (
-            <div className="rounded-xl border px-4 py-2 text-sm text-muted-foreground">
+            <div className="rounded-xl border px-3 py-2 text-sm text-muted-foreground sm:px-4">
               You have not participated in this exam yet.
             </div>
           )}
@@ -91,7 +91,7 @@ export default function UserLeaderboardClient({
 
       <div className="premium-panel overflow-hidden">
         <div className="overflow-auto">
-          <table className="w-full min-w-[680px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rank</th>
@@ -130,4 +130,3 @@ export default function UserLeaderboardClient({
     </main>
   );
 }
-

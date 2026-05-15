@@ -366,7 +366,7 @@ export function LeaderboardAnalyticsClient({
           }}
         />
 
-        <div className="p-6 pb-5">
+        <div className="p-4 pb-4 sm:p-6 sm:pb-5">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="mb-2 flex items-center gap-2">
@@ -385,7 +385,7 @@ export function LeaderboardAnalyticsClient({
                   Live
                 </Badge>
               </div>
-              <h1 className="premium-title text-4xl font-extrabold tracking-tight lg:text-5xl">
+              <h1 className="premium-title text-2xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
                 Leaderboard Analytics
               </h1>
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
@@ -408,7 +408,7 @@ export function LeaderboardAnalyticsClient({
             <Button size="sm" variant={period === "weekly" ? "default" : "outline"} onClick={() => updateUrl({ period: "weekly" })}>Weekly</Button>
             <Button size="sm" variant={period === "monthly" ? "default" : "outline"} onClick={() => updateUrl({ period: "monthly" })}>Monthly</Button>
             <Button size="sm" variant={period === "all" ? "default" : "outline"} onClick={() => updateUrl({ period: "all" })}>All Time</Button>
-            <div className="ml-auto w-full sm:w-72">
+            <div className="w-full sm:ml-auto sm:w-72">
               {examOptions.length > 0 ? (
                 <Select
                   value={selectedExamId ? String(selectedExamId) : String(examOptions[0].id)}
@@ -620,7 +620,7 @@ export function LeaderboardAnalyticsClient({
           title={`Top ${rankLimit} Exam Performers`}
           description="Ranked by score first, then accuracy percentage."
         />
-        <div className="mb-3 flex items-center justify-end">
+        <div className="mb-3 flex items-center justify-start sm:justify-end">
           <Select value={String(rankLimit)} onValueChange={(v) => setRankLimit(Number(v) as 100 | 200 | 500)}>
             <SelectTrigger className="w-36">
               <SelectValue />
@@ -634,7 +634,7 @@ export function LeaderboardAnalyticsClient({
         </div>
         <div className="premium-panel overflow-hidden">
           <div className="overflow-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rank</th>
