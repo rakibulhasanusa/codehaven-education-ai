@@ -19,12 +19,31 @@ export default function OpenGraphImage() {
           justifyContent: "space-between",
           padding: "56px",
           background:
-            "radial-gradient(circle at 20% 15%, rgba(37,99,235,0.30), transparent 35%), radial-gradient(circle at 80% 20%, rgba(13,148,136,0.25), transparent 35%), linear-gradient(135deg, #f8fbff 0%, #eef6ff 55%, #eaf9f5 100%)",
+            "radial-gradient(circle at 15% 10%, rgba(37,99,235,0.34), transparent 36%), radial-gradient(circle at 84% 16%, rgba(20,184,166,0.26), transparent 35%), linear-gradient(135deg, #f6faff 0%, #eaf2ff 50%, #e7f7f1 100%)",
           color: "#0f172a",
         }}
       >
-        <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "#1d4ed8" }}>
-          CodeHaven Education AI
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: "linear-gradient(145deg, #2563eb, #14b8a6)",
+              color: "#ffffff",
+              fontWeight: 900,
+              fontSize: 20,
+              boxShadow: "0 10px 25px rgba(37,99,235,0.3)",
+            }}
+          >
+            AI
+          </div>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 800, color: "#1d4ed8" }}>
+            CodeHaven Education AI
+          </div>
         </div>
 
         <div
@@ -34,22 +53,25 @@ export default function OpenGraphImage() {
             gap: 20,
             maxWidth: 1020,
             background: "rgba(255,255,255,0.74)",
-            border: "2px solid rgba(15,23,42,0.12)",
-            borderRadius: 24,
-            padding: "24px 28px",
-            boxShadow: "0 12px 30px rgba(15,23,42,0.14)",
+            border: "2px solid rgba(15,23,42,0.13)",
+            borderRadius: 26,
+            padding: "26px 30px",
+            boxShadow: "0 14px 34px rgba(15,23,42,0.16)",
           }}
         >
-          <div style={{ display: "flex", fontSize: 72, fontWeight: 900, lineHeight: 1.06, color: "#0b1220" }}>
+          <div style={{ display: "flex", fontSize: 74, fontWeight: 900, lineHeight: 1.04, color: "#0b1220" }}>
             AI Learning Intelligence
           </div>
-          <div style={{ display: "flex", fontSize: 33, color: "#1e293b", fontWeight: 600 }}>
+          <div style={{ display: "flex", fontSize: 32, color: "#1e293b", fontWeight: 650 }}>
             Smart Exam Generation • Performance Analytics • Weakness Detection
           </div>
         </div>
 
-        <div style={{ display: "flex", fontSize: 28, color: "#0f766e", fontWeight: 700 }}>
-          For BCS, Academic Learners, Coaching Centers & Institutions
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 30, height: 2, background: "#0f766e", borderRadius: 20 }} />
+          <div style={{ display: "flex", fontSize: 28, color: "#0f766e", fontWeight: 700 }}>
+            For BCS, Academic Learners, Coaching Centers & Institutions
+          </div>
         </div>
       </div>
     ),
