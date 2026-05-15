@@ -56,7 +56,12 @@ export async function middleware(req: NextRequest) {
   const session = token ? await verifyToken(token, secret) : null;
 
   const needsAdmin = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
-  const needsUser = pathname.startsWith("/dashboard") || pathname.startsWith("/exam") || pathname.startsWith("/api/exam") || pathname.startsWith("/api/auth/change-password") || pathname.startsWith("/api/auth/logout");
+  const needsUser =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/exam/") ||
+    pathname.startsWith("/api/exam") ||
+    pathname.startsWith("/api/auth/change-password") ||
+    pathname.startsWith("/api/auth/logout");
 
   if (!needsAdmin && !needsUser) return NextResponse.next();
 
